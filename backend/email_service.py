@@ -13,6 +13,10 @@ def _send_via_brevo(to: str, subject: str, html: str) -> bool:
     api_key = os.environ.get("BREVO_API_KEY", "").strip()
     sender = os.environ.get("SENDER_EMAIL", "").strip()
     if not api_key or not sender:
+        logger.error(
+            f"Brevo not configured: BREVO_API_KEY {'set' if api_key else 'MISSING'}, "
+            f"SENDER_EMAIL {'set' if sender else 'MISSING'}"
+        )
         return False
     try:
         payload = {
@@ -27,7 +31,10 @@ def _send_via_brevo(to: str, subject: str, html: str) -> bool:
             "content-type": "application/json",
         }
         resp = requests.post(BREVO_API_URL, json=payload, headers=headers, timeout=10)
-        return resp.status_code in (200, 201, 202)
+        if resp.status_code not in (200, 201, 202):
+            logger.error(f"Brevo send failed: status={resp.status_code} body={resp.text}")
+            return False
+        return True
     except Exception as e:
         logger.error(f"Brevo send failed: {e}")
         return False
