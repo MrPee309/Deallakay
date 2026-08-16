@@ -1,0 +1,136 @@
+{
+  "theme": "light",
+  "brand": {
+    "name": "DealLakay",
+    "tagline": "Achte. Vann. Fè bon Deal.",
+    "concept": "A professional, modern, and trustworthy technology marketplace tailored for Haiti. Serious and commercial, steering clear of eBay/FB Marketplace clones. Emphasizing trust through seller verification badges and a clean, high-contrast UI."
+  },
+  "typography": {
+    "headings": {
+      "family": "Outfit",
+      "weights": ["600", "700", "800"],
+      "usage": "Bold, clean, tech-forward headings. Tracking tight for larger sizes."
+    },
+    "body": {
+      "family": "Manrope",
+      "weights": ["400", "500"],
+      "usage": "Highly legible body text, perfect for dense product details and marketplace UI."
+    }
+  },
+  "colors": {
+    "primary": {
+      "DEFAULT": "#0047FF",
+      "foreground": "#FFFFFF",
+      "description": "Tech Blue - conveys trust, security, and modern technology."
+    },
+    "secondary": {
+      "DEFAULT": "#FFC800",
+      "foreground": "#000000",
+      "description": "Deal Yellow - used for highlights, sale tags, and the prominent 'Sell' button to draw attention."
+    },
+    "background": "#F8FAFC",
+    "surface": "#FFFFFF",
+    "border": "#E2E8F0",
+    "text": {
+      "primary": "#0F172A",
+      "secondary": "#64748B",
+      "muted": "#94A3B8"
+    },
+    "success": "#10B981",
+    "warning": "#F59E0B",
+    "danger": "#EF4444"
+  },
+  "layouts": {
+    "hero": "High-impact hero section with a bold heading ('Jwenn sa w bezwen. Vann sa w pa bezwen.'), a subtitle, and a prominent centered search bar that includes a category dropdown. Clean background with subtle tech patterns or a soft split layout.",
+    "grid": "Bento-style or strictly aligned grid system for product cards (mobile: 2 cols, desktop: 4-5 cols). Consistent heights and alignments.",
+    "navigation_mobile": "Fixed bottom navigation bar with 5 items: Home, Search, Sell, Messages, Profile. The 'Sell' button must be prominent (e.g., floating or highlighted in secondary color).",
+    "navigation_desktop": "Sticky glassmorphism header with logo, search, category links, and user actions (Sell, Messages, Profile)."
+  },
+  "visual_enhancers": {
+    "borders": "1px solid borders (#E2E8F0) on cards and containers. Avoid heavy shadows; use crisp borders and soft ambient shadows (shadow-sm) on hover.",
+    "radii": "Subtle rounding (rounded-lg or rounded-xl) for components to feel approachable but serious.",
+    "badges": "Pill-shaped badges for verifications (Email Verified, Phone Verified, Seller Verified, IMEI Verified). Use small crisp icons and success/primary colors for trust."
+  },
+  "components": {
+    "product_card": {
+      "style": "Flat surface, 1px border. Image container at top with a light gray background to make product pop. Price heavily weighted (e.g., text-xl font-bold text-primary). Condition and location as small muted text. Verification badges floating or neatly placed under seller name.",
+      "interactions": "hover:-translate-y-1 hover:shadow-md transition-all duration-200"
+    },
+    "search_bar": {
+      "style": "Large, pill-shaped or rounded-lg input field with a contrasting 'Search' button. Should stand out as the primary tool for finding tech."
+    },
+    "buttons": {
+      "primary": "Solid primary color, white text, bold font, hover:bg-blue-700.",
+      "sell_prominent": "Can use secondary color (Yellow) for high conversion, or Primary with a distinct icon."
+    }
+  },
+  "media": {
+    "image_urls": {
+      "hero_background_or_user": [
+        {
+          "url": "https://images.unsplash.com/photo-1528123778681-01e39b42808e?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDQ2NDJ8MHwxfHNlYXJjaHwyfHxoYXBweSUyMGJsYWNrJTIwcGVyc29uJTIwdXNpbmclMjBzbWFydHBob25lfGVufDB8fHx8MTc4Njg5Nzc4OHww&ixlib=rb-4.1.0&q=85",
+          "category": "hero_trust",
+          "description": "Man smiling and holding phone, great for trust/hero section"
+        }
+      ],
+      "products_phones": [
+        {
+          "url": "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMzV8MHwxfHNlYXJjaHwxfHxzbWFydHBob25lJTIwbW9kZXJufGVufDB8fHx8MTc4Njg5Nzc4MHww&ixlib=rb-4.1.0&q=85",
+          "category": "product_phone",
+          "description": "White smartphone near laptop"
+        },
+        {
+          "url": "https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMzV8MHwxfHNlYXJjaHwzfHxzbWFydHBob25lJTIwbW9kZXJufGVufDB8fHx8MTc4Njg5Nzc4MHww&ixlib=rb-4.1.0&q=85",
+          "category": "product_phone",
+          "description": "iPhone X space gray"
+        }
+      ],
+      "products_laptops": [
+        {
+          "url": "https://images.unsplash.com/photo-1496181133206-80ce9b88a853?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1OTV8MHwxfHNlYXJjaHwyfHxsYXB0b3AlMjBjb21wdXRlcnxlbnwwfHx8fDE3ODY4OTc3ODd8MA&ixlib=rb-4.1.0&q=85",
+          "category": "product_laptop",
+          "description": "MacBook Pro on table"
+        }
+      ],
+      "products_parts": [
+        {
+          "url": "https://images.unsplash.com/photo-1555617766-c94804975da3?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA2MTJ8MHwxfHNlYXJjaHw0fHxjb21wdXRlciUyMG1vdGhlcmJvYXJkJTIwcGFydHN8ZW58MHx8fHwxNzg2ODk3Nzg3fDA&ixlib=rb-4.1.0&q=85",
+          "category": "product_part",
+          "description": "Computer processor and motherboard"
+        }
+      ],
+      "products_accessories": [
+        {
+          "url": "https://images.unsplash.com/photo-1498049794561-7780e7231661?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxODd8MHwxfHNlYXJjaHwxfHxoZWFkcGhvbmVzJTIwc21hcnR3YXRjaCUyMHRlY2h8ZW58MHx8fHwxNzg2ODk3Nzg3fDA&ixlib=rb-4.1.0&q=85",
+          "category": "product_accessory",
+          "description": "Headphones and tech"
+        }
+      ]
+    },
+    "icons": {
+      "library": "lucide-react",
+      "instruction": "Use lucide-react for all standard UI icons (search, user, home, plus, message-circle, badge-check for verifications)."
+    }
+  },
+  "motion": {
+    "interactions": "Smooth hover states on all interactive elements. Buttons scale down slightly on active (active:scale-95). Product cards subtly lift on hover.",
+    "page_transitions": "Staggered fade-in for product grids."
+  },
+  "content_requirements": {
+    "language": "Haitian Creole (Kreyòl Ayisyen)",
+    "currency_format": "HTG (e.g., 250,000 HTG)",
+    "hero_title": "Jwenn sa w bezwen. Vann sa w pa bezwen.",
+    "hero_subtitle": "Telefòn, laptop, pyès, akseswa ak teknoloji disponib toupre ou ann Ayiti.",
+    "seller_badges": ["Email Verified", "Phone Verified", "Seller Verified", "IMEI Verified"]
+  },
+  "universal_guidelines_for_main_agent": [
+    "You tend to converge toward generic outputs. Make DealLakay distinctive and commercial.",
+    "Do NOT use complete transparent backgrounds for header over content. Use glassmorphism.",
+    "Do not apply `transition: all` universally.",
+    "Do not center align the app container text.",
+    "Use 2-3x more spacing for breathing room.",
+    "All interactive elements MUST include a `data-testid` attribute (e.g., data-testid='hero-search-input').",
+    "Use sonner for toast notifications.",
+    "Prioritize Shadcn/UI for logic-heavy components like selects and modals, but customize them heavily with Tailwind to match the brand."
+  ]
+}
