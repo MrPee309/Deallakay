@@ -34,17 +34,17 @@ def _send_via_brevo(to: str, subject: str, html: str) -> bool:
 
 
 def send_verification_email(to: str, name: str, link: str) -> bool:
-    subject = f"{SITE_NAME} â Verifye email ou"
+    subject = f"{SITE_NAME} — Verifye email ou"
     html = f"""
     <div style="font-family:Arial,sans-serif;max-width:520px;margin:auto;border:1px solid #E2E8F0;border-radius:12px;overflow:hidden">
       <div style="background:#0047FF;padding:24px;color:#fff"><h1 style="margin:0;font-size:22px">{SITE_NAME}</h1>
-      <p style="margin:4px 0 0;opacity:.9">Achte. Vann. FÃ¨ bon Deal.</p></div>
+      <p style="margin:4px 0 0;opacity:.9">Achte. Vann. Fè bon Deal.</p></div>
       <div style="padding:28px;color:#0F172A">
         <p>Bonjou {name},</p>
-        <p>MÃ¨si paske ou enskri sou {SITE_NAME}. Klike bouton anba a pou verifye email ou.</p>
+        <p>Mèsi paske ou enskri sou {SITE_NAME}. Klike bouton anba a pou verifye email ou.</p>
         <a href="{link}" style="display:inline-block;background:#FFC800;color:#000;padding:12px 22px;border-radius:8px;text-decoration:none;font-weight:bold;margin:12px 0">Verifye Email Mwen</a>
         <p style="color:#64748B;font-size:13px">Oswa kopye lyen sa a: <br>{link}</p>
-        <p style="color:#94A3B8;font-size:12px">Lyen sa a ap ekspire nan 24 Ã¨dtan.</p>
+        <p style="color:#94A3B8;font-size:12px">Lyen sa a ap ekspire nan 24 èdtan.</p>
       </div>
     </div>
     """
@@ -55,7 +55,7 @@ def send_verification_email(to: str, name: str, link: str) -> bool:
 
 
 def send_reset_email(to: str, name: str, link: str) -> bool:
-    subject = f"{SITE_NAME} â Reset modpas ou"
+    subject = f"{SITE_NAME} — Reset modpas ou"
     html = f"""
     <div style="font-family:Arial,sans-serif;max-width:520px;margin:auto;border:1px solid #E2E8F0;border-radius:12px;overflow:hidden">
       <div style="background:#0047FF;padding:24px;color:#fff"><h1 style="margin:0;font-size:22px">{SITE_NAME}</h1></div>
