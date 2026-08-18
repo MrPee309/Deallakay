@@ -175,21 +175,21 @@ async def get_current_user(request: Request) -> dict:
     try:
         payload = auth_lib.decode_token(token)
     except Exception:
-        raise HTTPException(status_code=401, detail="Session ou ekspire. Konekte ankò.")
+        raise HTTPException(status_code=401, detail="Session ou ekspire. Konekte ankÃ².")
     user = await db.users.find_one({"id": payload["sub"]}, NO_ID)
     if not user:
-        raise HTTPException(status_code=401, detail="Itilizatè pa jwenn.")
+        raise HTTPException(status_code=401, detail="ItilizatÃ¨ pa jwenn.")
     if payload.get("tv", 0) != user.get("token_version", 0):
-        raise HTTPException(status_code=401, detail="Session ou fèmen. Konekte ankò.")
+        raise HTTPException(status_code=401, detail="Session ou fÃ¨men. Konekte ankÃ².")
     if user.get("status") in ("banned", "suspended"):
-        raise HTTPException(status_code=403, detail="Kont ou sispann. Kontakte sipò.")
+        raise HTTPException(status_code=403, detail="Kont ou sispann. Kontakte sipÃ².")
     user.pop("password_hash", None)
     return user
 
 
 async def get_admin(user: dict = Depends(get_current_user)) -> dict:
     if user.get("role") != "admin":
-        raise HTTPException(status_code=403, detail="Aksè admin sèlman.")
+        raise HTTPException(status_code=403, detail="AksÃ¨ admin sÃ¨lman.")
     return user
 
 
@@ -283,13 +283,22 @@ async def register(data: RegisterIn):
     if data.password != data.confirm_password:
         raise HTTPException(status_code=400, detail="Modpas yo pa menm.")
     if len(data.password) < 6:
-        raise HTTPException(status_code=400, detail="Modpas la dwe gen omwen 6 karaktè.")
+        raise HTTPException(status_code=400, detail="Modpas la dwe gen omwen 6 karaktÃ¨.")
+    if not data.phone.strip():
+        raise HTTPException(status_code=400, detail="Nimewo telefÃ²n ou obligatwa.")
+    if not data.department.strip():
+        raise HTTPException(status_code=400, detail="Chwazi depatman ou.")
+    if not data.city.strip():
+        raise HTTPException(status_code=400, detail="Chwazi vil ou.")
+    dep_match = next((d for d in DEPARTMENTS if d["name"] == data.department), None)
+    if not dep_match or data.city not in dep_match["cities"]:
+        raise HTTPException(status_code=400, detail="Depatman oswa vil pa valab.")
     email = data.email.lower().strip()
     username = data.username.lower().strip()
     if await db.users.find_one({"email": email}):
         raise HTTPException(status_code=400, detail="Email sa a deja itilize.")
     if await db.users.find_one({"username": username}):
-        raise HTTPException(status_code=400, detail="Non itilizatè sa a deja pran.")
+        raise HTTPException(status_code=400, detail="Non itilizatÃ¨ sa a deja pran.")
     uid = str(uuid.uuid4())
     user = {
         "id": uid,
@@ -352,7 +361,7 @@ async def resend_verification(data: ResendIn):
     })
     link = f"{FRONTEND_URL}/verify-email?token={token}"
     email_service.send_verification_email(user["email"], user["full_name"], link)
-    resp = {"message": "Nou voye email verification an ankò."}
+    resp = {"message": "Nou voye email verification an ankÃ²."}
     if DEMO_MODE:
         resp["demo_verification_link"] = link
     return resp
@@ -365,9 +374,9 @@ async def login(data: LoginIn):
     if not user:
         user = await db.users.find_one({"email": username})
     if not user or not auth_lib.verify_password(data.password, user["password_hash"]):
-        raise HTTPException(status_code=401, detail="Non itilizatè oswa modpas pa kòrèk.")
+        raise HTTPException(status_code=401, detail="Non itilizatÃ¨ oswa modpas pa kÃ²rÃ¨k.")
     if user.get("status") in ("banned", "suspended"):
-        raise HTTPException(status_code=403, detail="Kont ou sispann. Kontakte sipò.")
+        raise HTTPException(status_code=403, detail="Kont ou sispann. Kontakte sipÃ².")
     if not user.get("email_verified"):
         raise HTTPException(status_code=403, detail="Verifye email ou avan ou konekte.")
     token = auth_lib.create_access_token(user["id"], user["username"], user["role"], user.get("token_version", 0))
@@ -382,7 +391,7 @@ async def me(user: dict = Depends(get_current_user)):
 @api.post("/auth/google")
 async def google_auth(data: GoogleAuthIn):
     if not GOOGLE_CLIENT_ID:
-        raise HTTPException(status_code=500, detail="Google login pa konfigire sou sèvè a.")
+        raise HTTPException(status_code=500, detail="Google login pa konfigire sou sÃ¨vÃ¨ a.")
     try:
         resp = requests.get(
             "https://oauth2.googleapis.com/tokeninfo",
@@ -390,7 +399,7 @@ async def google_auth(data: GoogleAuthIn):
             timeout=10,
         )
     except Exception:
-        raise HTTPException(status_code=503, detail="Pa ka verifye ak Google kounye a. Eseye ankò.")
+        raise HTTPException(status_code=503, detail="Pa ka verifye ak Google kounye a. Eseye ankÃ².")
     if resp.status_code != 200:
         raise HTTPException(status_code=401, detail="Token Google pa valab.")
     info = resp.json()
@@ -405,7 +414,7 @@ async def google_auth(data: GoogleAuthIn):
 
     if user:
         if user.get("status") in ("banned", "suspended"):
-            raise HTTPException(status_code=403, detail="Kont ou sispann. Kontakte sipò.")
+            raise HTTPException(status_code=403, detail="Kont ou sispann. Kontakte sipÃ².")
         updates = {"email_verified": True}
         if not user.get("google_id"):
             updates["google_id"] = google_id
@@ -416,7 +425,7 @@ async def google_auth(data: GoogleAuthIn):
             # First-time Google sign-up needs department/city; ask the frontend to collect it.
             raise HTTPException(status_code=422, detail="Chwazi depatman ak vil ou pou fini enskripsyon an.")
         uid = str(uuid.uuid4())
-        base_username = re.sub(r"[^a-z0-9]", "", email.split("@")[0].lower()) or "itilizatè"
+        base_username = re.sub(r"[^a-z0-9]", "", email.split("@")[0].lower()) or "itilizatÃ¨"
         username = base_username
         suffix = 1
         while await db.users.find_one({"username": username}):
@@ -452,7 +461,7 @@ async def google_auth(data: GoogleAuthIn):
 @api.post("/auth/logout-all")
 async def logout_all(user: dict = Depends(get_current_user)):
     await db.users.update_one({"id": user["id"]}, {"$inc": {"token_version": 1}})
-    return {"message": "Tout sesyon fèmen."}
+    return {"message": "Tout sesyon fÃ¨men."}
 
 
 @api.post("/auth/forgot-password")
@@ -479,7 +488,7 @@ async def reset_password(data: ResetIn):
     if not rec or datetime.fromisoformat(rec["expires_at"]) < datetime.now(timezone.utc):
         raise HTTPException(status_code=400, detail="Lyen reset la pa valab oswa ekspire.")
     if len(data.password) < 6:
-        raise HTTPException(status_code=400, detail="Modpas la dwe gen omwen 6 karaktè.")
+        raise HTTPException(status_code=400, detail="Modpas la dwe gen omwen 6 karaktÃ¨.")
     await db.users.update_one({"id": rec["user_id"]}, {"$set": {"password_hash": auth_lib.hash_password(data.password)}, "$inc": {"token_version": 1}})
     await db.email_tokens.delete_one({"token": data.token})
     return {"message": "Modpas chanje. Ou ka konekte kounye a."}
@@ -488,14 +497,14 @@ async def reset_password(data: ResetIn):
 @api.post("/auth/verify-phone")
 async def verify_phone(user: dict = Depends(get_current_user)):
     await db.users.update_one({"id": user["id"]}, {"$set": {"phone_verified": True}})
-    return {"message": "Telefòn ou verifye."}
+    return {"message": "TelefÃ²n ou verifye."}
 
 
 # ---------------- Seller endpoints ----------------
 @api.post("/seller/become")
 async def become_seller(data: BecomeSellerIn, user: dict = Depends(get_current_user)):
     if not data.accept_seller_terms or not data.accept_marketplace_rules:
-        raise HTTPException(status_code=400, detail="Ou dwe aksepte règ vandè yo.")
+        raise HTTPException(status_code=400, detail="Ou dwe aksepte rÃ¨g vandÃ¨ yo.")
     if not user.get("email_verified"):
         raise HTTPException(status_code=400, detail="Email ou dwe verifye.")
     existing = await db.seller_profiles.find_one({"user_id": user["id"]})
@@ -518,14 +527,14 @@ async def become_seller(data: BecomeSellerIn, user: dict = Depends(get_current_u
             "date_joined": now_iso(),
         })
     await db.users.update_one({"id": user["id"]}, {"$set": {"is_seller": True}})
-    return {"message": "Ou se yon vandè kounye a!", "status": "active"}
+    return {"message": "Ou se yon vandÃ¨ kounye a!", "status": "active"}
 
 
 @api.get("/seller/profile")
 async def my_seller_profile(user: dict = Depends(get_current_user)):
     prof = await db.seller_profiles.find_one({"user_id": user["id"]}, NO_ID)
     if not prof:
-        raise HTTPException(status_code=404, detail="Ou poko yon vandè.")
+        raise HTTPException(status_code=404, detail="Ou poko yon vandÃ¨.")
     return prof
 
 
@@ -533,19 +542,19 @@ async def my_seller_profile(user: dict = Depends(get_current_user)):
 async def update_seller_settings(data: SellerSettingsIn, user: dict = Depends(get_current_user)):
     prof = await db.seller_profiles.find_one({"user_id": user["id"]})
     if not prof:
-        raise HTTPException(status_code=404, detail="Ou poko yon vandè.")
+        raise HTTPException(status_code=404, detail="Ou poko yon vandÃ¨.")
     updates = {k: v for k, v in data.model_dump().items() if v is not None and k != "avatar"}
     if updates:
         await db.seller_profiles.update_one({"user_id": user["id"]}, {"$set": updates})
     if data.avatar is not None:
         await db.users.update_one({"id": user["id"]}, {"$set": {"avatar": data.avatar}})
-    return {"message": "Paramèt anrejistre."}
+    return {"message": "ParamÃ¨t anrejistre."}
 
 
 @api.post("/seller/verify-request")
 async def request_verification(user: dict = Depends(get_current_user)):
     if not user.get("is_seller"):
-        raise HTTPException(status_code=400, detail="Ou dwe yon vandè.")
+        raise HTTPException(status_code=400, detail="Ou dwe yon vandÃ¨.")
     existing = await db.seller_verifications.find_one({"user_id": user["id"], "status": "pending"})
     if existing:
         return {"message": "Demann verifikasyon ou deja an atant."}
@@ -562,7 +571,7 @@ async def request_verification(user: dict = Depends(get_current_user)):
 @api.get("/seller/dashboard")
 async def seller_dashboard(user: dict = Depends(get_current_user)):
     if not user.get("is_seller"):
-        raise HTTPException(status_code=403, detail="Ou poko yon vandè.")
+        raise HTTPException(status_code=403, detail="Ou poko yon vandÃ¨.")
     sid = user["id"]
     active = await db.products.count_documents({"seller_id": sid, "status": {"$in": ["active", "pending"]}})
     sold = await db.products.count_documents({"seller_id": sid, "status": "sold"})
@@ -585,10 +594,10 @@ async def seller_dashboard(user: dict = Depends(get_current_user)):
 async def public_seller(username: str):
     u = await db.users.find_one({"username": username.lower()}, NO_ID)
     if not u:
-        raise HTTPException(status_code=404, detail="Vandè pa jwenn.")
+        raise HTTPException(status_code=404, detail="VandÃ¨ pa jwenn.")
     prof = await db.seller_profiles.find_one({"user_id": u["id"]}, NO_ID)
     if not prof:
-        raise HTTPException(status_code=404, detail="Vandè pa jwenn.")
+        raise HTTPException(status_code=404, detail="VandÃ¨ pa jwenn.")
     product_count = await db.products.count_documents({"seller_id": u["id"], "status": "active"})
     products = await db.products.find({"seller_id": u["id"], "status": "active"}, NO_ID).sort("created_at", -1).to_list(50)
     for p in products:
@@ -609,7 +618,7 @@ async def public_seller(username: str):
 async def seller_reviews(username: str):
     u = await db.users.find_one({"username": username.lower()}, NO_ID)
     if not u:
-        raise HTTPException(status_code=404, detail="Vandè pa jwenn.")
+        raise HTTPException(status_code=404, detail="VandÃ¨ pa jwenn.")
     return await db.reviews.find({"seller_id": u["id"]}, NO_ID).sort("created_at", -1).to_list(200)
 
 
@@ -624,7 +633,7 @@ def strip_private(p: dict, is_owner=False):
 @api.post("/products")
 async def create_product(data: ProductIn, user: dict = Depends(get_current_user)):
     if not user.get("is_seller"):
-        raise HTTPException(status_code=403, detail="Ou dwe yon vandè pou vann.")
+        raise HTTPException(status_code=403, detail="Ou dwe yon vandÃ¨ pou vann.")
     if data.status not in ("active", "draft"):
         raise HTTPException(status_code=400, detail="Estati pa valab.")
     settings = await db.settings.find_one({"id": "site-settings"}, NO_ID)
@@ -808,7 +817,7 @@ async def mark_sold(pid: str, user: dict = Depends(get_current_user)):
     if not p or (p["seller_id"] != user["id"] and user.get("role") != "admin"):
         raise HTTPException(status_code=403, detail="Ou pa gen dwa.")
     await db.products.update_one({"id": pid}, {"$set": {"status": "sold", "sold_at": now_iso()}})
-    return {"message": "Pwodwi make kòm VANN."}
+    return {"message": "Pwodwi make kÃ²m VANN."}
 
 
 @api.post("/products/{pid}/restore")
@@ -856,7 +865,7 @@ async def create_conversation(data: ConversationIn, user: dict = Depends(get_cur
     if not p:
         raise HTTPException(status_code=404, detail="Pwodwi pa jwenn.")
     if p["seller_id"] == user["id"]:
-        raise HTTPException(status_code=400, detail="Ou pa ka voye mesaj ba tèt ou.")
+        raise HTTPException(status_code=400, detail="Ou pa ka voye mesaj ba tÃ¨t ou.")
     existing = await db.conversations.find_one({"product_id": data.product_id, "buyer_id": user["id"]}, NO_ID)
     if existing:
         return existing
@@ -892,7 +901,7 @@ async def list_conversations(user: dict = Depends(get_current_user)):
 async def get_messages(cid: str, user: dict = Depends(get_current_user)):
     conv = await db.conversations.find_one({"id": cid}, NO_ID)
     if not conv or user["id"] not in (conv["buyer_id"], conv["seller_id"]):
-        raise HTTPException(status_code=403, detail="Aksè refize.")
+        raise HTTPException(status_code=403, detail="AksÃ¨ refize.")
     await db.messages.update_many({"conversation_id": cid, "sender_id": {"$ne": user["id"]}}, {"$set": {"read": True}})
     msgs = await db.messages.find({"conversation_id": cid}, NO_ID).sort("created_at", 1).to_list(1000)
     return {"conversation": conv, "messages": msgs}
@@ -902,7 +911,7 @@ async def get_messages(cid: str, user: dict = Depends(get_current_user)):
 async def send_message(cid: str, data: MessageIn, user: dict = Depends(get_current_user)):
     conv = await db.conversations.find_one({"id": cid})
     if not conv or user["id"] not in (conv["buyer_id"], conv["seller_id"]):
-        raise HTTPException(status_code=403, detail="Aksè refize.")
+        raise HTTPException(status_code=403, detail="AksÃ¨ refize.")
     msg = {
         "id": str(uuid.uuid4()),
         "conversation_id": cid,
@@ -945,9 +954,9 @@ async def create_review(data: ReviewIn, user: dict = Depends(get_current_user)):
     if data.rating < 1 or data.rating > 5:
         raise HTTPException(status_code=400, detail="Rating dwe ant 1 ak 5.")
     if data.seller_id == user["id"]:
-        raise HTTPException(status_code=400, detail="Ou pa ka evalye tèt ou.")
+        raise HTTPException(status_code=400, detail="Ou pa ka evalye tÃ¨t ou.")
     if await db.reviews.find_one({"seller_id": data.seller_id, "buyer_id": user["id"]}):
-        raise HTTPException(status_code=400, detail="Ou deja evalye vandè sa a.")
+        raise HTTPException(status_code=400, detail="Ou deja evalye vandÃ¨ sa a.")
     verified = bool(await db.conversations.find_one({"seller_id": data.seller_id, "buyer_id": user["id"]}))
     review = {
         "id": str(uuid.uuid4()),
@@ -983,7 +992,7 @@ async def create_report(data: ReportIn, user: dict = Depends(get_current_user)):
         "created_at": now_iso(),
     }
     await db.reports.insert_one(dict(report))
-    return {"message": "Rapò ou voye. Mèsi."}
+    return {"message": "RapÃ² ou voye. MÃ¨si."}
 
 
 # ---------------- Notifications ----------------
@@ -1045,12 +1054,12 @@ async def admin_user_action(uid: str, action: str, admin: dict = Depends(get_adm
     if action == "delete":
         await db.users.delete_one({"id": uid})
         await db.products.delete_many({"seller_id": uid})
-        return {"message": "Itilizatè efase."}
+        return {"message": "ItilizatÃ¨ efase."}
     status_map = {"suspend": "suspended", "ban": "banned", "restore": "active"}
     if action not in status_map:
         raise HTTPException(status_code=400, detail="Aksyon pa valab.")
     await db.users.update_one({"id": uid}, {"$set": {"status": status_map[action]}, "$inc": {"token_version": 1}})
-    return {"message": f"Itilizatè {status_map[action]}."}
+    return {"message": f"ItilizatÃ¨ {status_map[action]}."}
 
 
 @api.get("/admin/products")
@@ -1119,7 +1128,7 @@ async def admin_verify_seller(vid: str, decision: str, admin: dict = Depends(get
     await db.seller_verifications.update_one({"id": vid}, {"$set": {"status": status}})
     if decision == "approve":
         await db.seller_profiles.update_one({"user_id": v["user_id"]}, {"$set": {"seller_verified": True}})
-        await create_notification(v["user_id"], "verified", "Ou se yon Vandè Verifye kounye a!", "")
+        await create_notification(v["user_id"], "verified", "Ou se yon VandÃ¨ Verifye kounye a!", "")
     return {"message": "ok"}
 
 
@@ -1177,7 +1186,7 @@ async def admin_update_settings(data: SettingsIn, admin: dict = Depends(get_admi
     if data.safety_messages is not None:
         updates["safety_messages"] = data.safety_messages
     await db.settings.update_one({"id": "site-settings"}, {"$set": updates}, upsert=True)
-    return {"message": "Paramèt anrejistre."}
+    return {"message": "ParamÃ¨t anrejistre."}
 
 
 app.include_router(api)
