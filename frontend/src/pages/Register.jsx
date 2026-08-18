@@ -79,14 +79,14 @@ export default function Register() {
               <Input value={f.country} disabled className="mt-1.5 h-11" />
             </div>
             <div>
-              <Label>{t("department")}</Label>
+              <Label>{t("department")}<span className="text-red-500 ml-0.5">*</span></Label>
               <Select value={f.department} onValueChange={(v) => { set("department", v); set("city", ""); }}>
                 <SelectTrigger className="mt-1.5 h-11" data-testid="reg-department"><SelectValue placeholder="—" /></SelectTrigger>
                 <SelectContent>{locations.map((d) => <SelectItem key={d.id} value={d.name}>{d.name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div>
-              <Label>{t("city")}</Label>
+              <Label>{t("city")}<span className="text-red-500 ml-0.5">*</span></Label>
               <Select value={f.city} onValueChange={(v) => set("city", v)} disabled={!dep}>
                 <SelectTrigger className="mt-1.5 h-11" data-testid="reg-city"><SelectValue placeholder="—" /></SelectTrigger>
                 <SelectContent>{dep?.cities.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
@@ -118,7 +118,7 @@ export default function Register() {
 function Field({ label, v, onC, type = "text", testid, required, placeholder }) {
   return (
     <div>
-      <Label>{label}</Label>
+      <Label>{label}{required && <span className="text-red-500 ml-0.5">*</span>}</Label>
       <Input type={type} value={v} onChange={(e) => onC(e.target.value)} required={required} data-testid={testid} placeholder={placeholder} className="mt-1.5 h-11" autoCapitalize={type === "email" ? "none" : undefined} />
     </div>
   );
