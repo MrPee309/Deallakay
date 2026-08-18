@@ -1,69 +1,71 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
-import api from "@/lib/api";
+import React, { useState } from "react";
+import { Link, useNavigate, useLocation } from "react-router-dom";
+import { toast } from "sonner";
+import { Loader2 } from "lucide-react";
+import { apiError } from "@/lib/api";
+import { useApp } from "@/contexts/AppContext";
+import { useAuth } from "@/contexts/AuthContext";
+import Logo from "@/components/Logo";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import GoogleAuthButton from "@/components/GoogleAuthButton";
 
-const AuthContext = createContext(null);
-export const useAuth = () => useContext(AuthContext);
+export default function Login() {
+  const { t } = useApp();
+  const { login } = useAuth();
+  const nav = useNavigate();
+  const loc = useLocation();
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
 
-export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null); // null = loading, false = anon
-  const [notifCount, setNotifCount] = useState(0);
-
-  const fetchMe = useCallback(async () => {
-    const token = localStorage.getItem("dl_token");
-    if (!token) { setUser(false); return; }
+  const submit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
     try {
-      const { data } = await api.get("/auth/me");
-      setUser(data);
-    } catch {
-      localStorage.removeItem("dl_token");
-      setUser(false);
+      await login(username, password);
+      toast.success("Byenveni!");
+      nav(loc.state?.from || "/");
+    } catch (e) {
+      toast.error(apiError(e));
+    } finally {
+      setLoading(false);
     }
-  }, []);
-
-  useEffect(() => { fetchMe(); }, [fetchMe]);
-
-  const refreshNotif = useCallback(async () => {
-    if (!localStorage.getItem("dl_token")) return;
-    try {
-      const { data } = await api.get("/notifications");
-      setNotifCount(data.unread);
-    } catch {}
-  }, []);
-
-  useEffect(() => {
-    if (user && user.id) {
-      refreshNotif();
-      const iv = setInterval(refreshNotif, 15000);
-      return () => clearInterval(iv);
-    }
-  }, [user, refreshNotif]);
-
-  const login = async (username, password) => {
-    const { data } = await api.post("/auth/login", { username, password });
-    localStorage.setItem("dl_token", data.access_token);
-    setUser(data.user);
-    return data.user;
-  };
-
-  const loginWithGoogle = async (credential, department, city) => {
-    const payload = { credential };
-    if (department) payload.department = department;
-    if (city) payload.city = city;
-    const { data } = await api.post("/auth/google", payload);
-    localStorage.setItem("dl_token", data.access_token);
-    setUser(data.user);
-    return data.user;
-  };
-
-  const logout = () => {
-    localStorage.removeItem("dl_token");
-    setUser(false);
-    setNotifCount(0);
   };
 
   return (
-    <AuthContext.Provider value={{ user, setUser, login, loginWithGoogle, logout, fetchMe, notifCount, refreshNotif, setNotifCount }}>
-      {children}
-    </AuthContext.Provider>
+    <div className="max-w-md mx-auto px-4 py-12">
+      <div className="text-center mb-8"><Logo size="lg" className="justify-center" /></div>
+      <div className="bg-card border border-border rounded-2xl p-6 md:p-8">
+        <h1 className="font-display text-2xl font-bold mb-1">{t("signIn")}</h1>
+        <p className="text-sm text-muted-foreground mb-6">Konekte ak non itilizatè w oswa email.</p>
+        <form onSubmit={submit} className="space-y-4">
+          <div>
+            <Label>{t("username")} / {t("email")}</Label>
+            <Input value={username} onChange={(e) => setUsername(e.target.value)} required data-testid="login-username" className="mt-1.5 h-11" autoCapitalize="none" />
+          </div>
+          <div>
+            <div className="flex justify-between items-center">
+              <Label>{t("password")}</Label>
+              <Link to="/forgot-password" className="text-xs text-primary hover:underline">{t("forgotPassword")}</Link>
+            </div>
+            <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required data-testid="login-password" className="mt-1.5 h-11" />
+          </div>
+          <Button type="submit" disabled={loading} data-testid="login-submit" className="w-full h-11 bg-primary font-semibold">
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : t("signIn")}
+          </Button>
+        </form>
+        <div className="flex items-center gap-3 my-6">
+          <div className="h-px bg-border flex-1" />
+          <span className="text-xs text-muted-foreground">oswa</span>
+          <div className="h-px bg-border flex-1" />
+        </div>
+        <GoogleAuthButton onSuccess={() => nav(loc.state?.from || "/")} />
+        <p className="text-sm text-center text-muted-foreground mt-6">
+          {t("noAccount")} <Link to="/register" className="text-primary font-semibold hover:underline">{t("register")}</Link>
+        </p>
+      </div>
+    </div>
   );
 }
