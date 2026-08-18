@@ -45,6 +45,16 @@ export function AuthProvider({ children }) {
     return data.user;
   };
 
+  const loginWithGoogle = async (credential, department, city) => {
+    const payload = { credential };
+    if (department) payload.department = department;
+    if (city) payload.city = city;
+    const { data } = await api.post("/auth/google", payload);
+    localStorage.setItem("dl_token", data.access_token);
+    setUser(data.user);
+    return data.user;
+  };
+
   const logout = () => {
     localStorage.removeItem("dl_token");
     setUser(false);
@@ -52,7 +62,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, setUser, login, logout, fetchMe, notifCount, refreshNotif, setNotifCount }}>
+    <AuthContext.Provider value={{ user, setUser, login, loginWithGoogle, logout, fetchMe, notifCount, refreshNotif, setNotifCount }}>
       {children}
     </AuthContext.Provider>
   );
