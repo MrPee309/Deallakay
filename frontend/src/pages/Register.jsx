@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import GoogleAuthButton from "@/components/GoogleAuthButton";
 
 export default function Register() {
   const { t, locations } = useApp();
@@ -100,6 +101,12 @@ export default function Register() {
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : t("createAccount")}
           </Button>
         </form>
+        <div className="flex items-center gap-3 my-6">
+          <div className="h-px bg-border flex-1" />
+          <span className="text-xs text-muted-foreground">oswa</span>
+          <div className="h-px bg-border flex-1" />
+        </div>
+        <GoogleAuthButton onSuccess={() => nav("/")} />
         <p className="text-sm text-center text-muted-foreground mt-6">
           {t("alreadyAccount")} <Link to="/login" className="text-primary font-semibold hover:underline">{t("signIn")}</Link>
         </p>
