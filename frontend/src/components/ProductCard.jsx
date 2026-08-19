@@ -17,6 +17,7 @@ export default function ProductCard({ product, index = 0 }) {
   const { branding, lang } = useApp();
   const img = product.images?.[0];
   const isSold = product.status === "sold";
+  const outOfStock = !isSold && product.quantity != null && product.quantity <= 0;
   return (
     <Link
       to={`/product/${product.slug || product.id}`}
@@ -33,6 +34,11 @@ export default function ProductCard({ product, index = 0 }) {
         {isSold && (
           <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
             <span className="bg-destructive text-white font-display font-bold px-4 py-1.5 rounded-lg text-sm rotate-[-8deg]">VANN</span>
+          </div>
+        )}
+        {outOfStock && (
+          <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+            <span className="bg-slate-700 text-white font-display font-bold px-4 py-1.5 rounded-lg text-sm">PA GEN ANKÒ</span>
           </div>
         )}
         <span className={`absolute top-2 left-2 text-[10px] font-semibold px-2 py-0.5 rounded-full ${CONDITION_COLORS[product.condition] || "bg-slate-100 text-slate-700"}`}>
