@@ -6,7 +6,7 @@ export default function BecomeTechnicianPage() {
   const nav = useNavigate();
   return (
     <div className="max-w-7xl mx-auto px-4 py-10">
-      <BecomeTechnician onDone={() => nav("/technicians")} />
+      <BecomeTechnician onDone={() => nav("/technician-dashboard")} />
     </div>
   );
 }
