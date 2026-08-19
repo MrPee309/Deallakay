@@ -189,7 +189,7 @@ export default function AddProduct() {
               </div>
               <div>
                 <Label>Kantite</Label>
-                <Input type="number" min="1" value={f.quantity} onChange={(e) => set("quantity", e.target.value)} data-testid="product-quantity" className="mt-1.5 h-11" />
+                <Input type="number" min="0" value={f.quantity} onChange={(e) => set("quantity", e.target.value)} data-testid="product-quantity" className="mt-1.5 h-11" />
               </div>
             </div>
             <div>
