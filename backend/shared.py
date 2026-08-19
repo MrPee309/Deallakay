@@ -12,10 +12,12 @@ unchanged so it can be shared.
 """
 import os
 import re
+import uuid
 import logging
 from datetime import datetime, timezone
+from typing import List, Dict
 
-from fastapi import HTTPException, Request, Depends
+from fastapi import HTTPException, Request, Depends, WebSocket
 from motor.motor_asyncio import AsyncIOMotorClient
 
 import auth as auth_lib
@@ -88,3 +90,43 @@ def public_user(u: dict) -> dict:
         "avatar": u.get("avatar", ""),
         "created_at": u.get("created_at"),
     }
+
+
+# ---------------- WebSocket manager / notifications ----------------
+class ConnectionManager:
+    def __init__(self):
+        self.active: Dict[str, List[WebSocket]] = {}
+
+    async def connect(self, user_id: str, ws: WebSocket):
+        await ws.accept()
+        self.active.setdefault(user_id, []).append(ws)
+
+    def disconnect(self, user_id: str, ws: WebSocket):
+        conns = self.active.get(user_id, [])
+        if ws in conns:
+            conns.remove(ws)
+
+    async def send(self, user_id: str, data: dict):
+        for ws in list(self.active.get(user_id, [])):
+            try:
+                await ws.send_json(data)
+            except Exception:
+                pass
+
+
+manager = ConnectionManager()
+
+
+async def create_notification(user_id: str, ntype: str, message: str, link: str = ""):
+    notif = {
+        "id": str(uuid.uuid4()),
+        "user_id": user_id,
+        "type": ntype,
+        "message": message,
+        "link": link,
+        "read": False,
+        "created_at": now_iso(),
+    }
+    await db.notifications.insert_one(dict(notif))
+    await manager.send(user_id, {"event": "notification", "data": {k: v for k, v in notif.items() if k != "_id"}})
+
