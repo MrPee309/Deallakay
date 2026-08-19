@@ -18,6 +18,21 @@ from shared import db, NO_ID, now_iso, slugify, get_current_user, create_notific
 router = APIRouter(prefix="/api", tags=["products"])
 
 
+def _build_search_text(title: str, description: str, subcategory: Optional[str], specs: Dict[str, Any]) -> str:
+    """
+    Concatenates every searchable field (including free-form specs values —
+    e.g. compatible_model, part_number) into one lowercase blob so buyers can
+    search things like "iPhone 13 LCD" or "MacBook A2338" and match specs that
+    live outside title/description. Reuses the existing MongoDB regex search —
+    no Elasticsearch/Algolia needed.
+    """
+    parts = [title or "", description or "", subcategory or ""]
+    for v in (specs or {}).values():
+        if isinstance(v, str):
+            parts.append(v)
+    return " ".join(parts).lower()
+
+
 class ProductIn(BaseModel):
     category: str
     subcategory: Optional[str] = None
@@ -49,6 +64,8 @@ async def create_product(data: ProductIn, user: dict = Depends(get_current_user)
         raise HTTPException(status_code=403, detail="Ou dwe yon vandè pou vann.")
     if data.status not in ("active", "draft"):
         raise HTTPException(status_code=400, detail="Estati pa valab.")
+    if data.quantity < 0:
+        raise HTTPException(status_code=400, detail="Kantite pa ka negatif.")
     security.validate_images(data.images)
     settings = await db.settings.find_one({"id": "site-settings"}, NO_ID)
     listing_mode = settings.get("listing_mode", "auto") if settings else "auto"
@@ -79,6 +96,7 @@ async def create_product(data: ProductIn, user: dict = Depends(get_current_user)
         "imei": data.imei or "",
         "imei_verified": False,
         "status": status,
+        "search_text": _build_search_text(data.title, data.description, data.subcategory, data.specs),
         "views": 0,
         "favorites_count": 0,
         "created_at": now_iso(),
@@ -104,7 +122,12 @@ async def list_products(
     page: int = 1,
     limit: int = 20,
 ):
-    query: Dict[str, Any] = {"status": "active"}
+    query: Dict[str, Any] = {
+        "status": "active",
+        # Treat a missing "quantity" as in-stock too — safe default for any
+        # product created before this field existed, per backward-compat rules.
+        "$or": [{"quantity": {"$exists": False}}, {"quantity": {"$gt": 0}}],
+    }
     if category:
         query["category"] = category
     if subcategory:
@@ -126,7 +149,9 @@ async def list_products(
         query["price"] = pr
     if q:
         rx = {"$regex": re.escape(q), "$options": "i"}
-        query["$or"] = [{"title": rx}, {"description": rx}, {"seller_username": rx}, {"subcategory": rx}]
+        search_or = {"$or": [{"title": rx}, {"description": rx}, {"seller_username": rx}, {"subcategory": rx}, {"search_text": rx}]}
+        stock_or = query.pop("$or")
+        query["$and"] = [{"$or": stock_or}, search_or]
     if verified_seller:
         verified_ids = await db.seller_profiles.find({"seller_verified": True}, {"user_id": 1}).to_list(1000)
         query["seller_id"] = {"$in": [v["user_id"] for v in verified_ids]}
@@ -204,8 +229,11 @@ async def update_product(pid: str, data: ProductIn, user: dict = Depends(get_cur
         raise HTTPException(status_code=403, detail="Ou pa gen dwa modifye.")
     if p["status"] == "sold":
         raise HTTPException(status_code=400, detail="Pwodwi vann pa ka modifye. Restore l anvan.")
+    if data.quantity < 0:
+        raise HTTPException(status_code=400, detail="Kantite pa ka negatif.")
     security.validate_images(data.images)
     updates = data.model_dump()
+    updates["search_text"] = _build_search_text(data.title, data.description, data.subcategory, data.specs)
     updates["images"] = updates["images"][:10]
     updates["updated_at"] = now_iso()
     if updates.get("status") not in ("active", "draft"):
