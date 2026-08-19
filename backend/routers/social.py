@@ -28,6 +28,7 @@ class ReviewIn(BaseModel):
     seller_id: str
     rating: int
     comment: str = ""
+    target_type: str = "seller"  # "seller" (default, unchanged) or "technician"
 
 
 class ReportIn(BaseModel):
@@ -132,14 +133,21 @@ async def websocket_endpoint(websocket: WebSocket, token: str = Query(...)):
 async def create_review(data: ReviewIn, user: dict = Depends(get_current_user)):
     if data.rating < 1 or data.rating > 5:
         raise HTTPException(status_code=400, detail="Rating dwe ant 1 ak 5.")
+    if data.target_type not in ("seller", "technician"):
+        raise HTTPException(status_code=400, detail="Tip evalyasyon pa valab.")
     if data.seller_id == user["id"]:
         raise HTTPException(status_code=400, detail="Ou pa ka evalye tèt ou.")
-    if await db.reviews.find_one({"seller_id": data.seller_id, "buyer_id": user["id"]}):
-        raise HTTPException(status_code=400, detail="Ou deja evalye vandè sa a.")
+    if data.target_type == "seller":
+        dup_query = {"seller_id": data.seller_id, "buyer_id": user["id"], "$or": [{"target_type": "seller"}, {"target_type": {"$exists": False}}]}
+    else:
+        dup_query = {"seller_id": data.seller_id, "buyer_id": user["id"], "target_type": "technician"}
+    if await db.reviews.find_one(dup_query):
+        raise HTTPException(status_code=400, detail="Ou deja evalye sa a.")
     verified = bool(await db.conversations.find_one({"seller_id": data.seller_id, "buyer_id": user["id"]}))
     review = {
         "id": str(uuid.uuid4()),
         "seller_id": data.seller_id,
+        "target_type": data.target_type,
         "buyer_id": user["id"],
         "buyer_username": user["username"],
         "buyer_avatar": user.get("avatar", ""),
@@ -149,10 +157,19 @@ async def create_review(data: ReviewIn, user: dict = Depends(get_current_user)):
         "created_at": now_iso(),
     }
     await db.reviews.insert_one(dict(review))
-    all_reviews = await db.reviews.find({"seller_id": data.seller_id}).to_list(1000)
+    # "target_type" may be missing on reviews created before this field existed —
+    # those were always seller reviews, so include them when averaging seller ratings.
+    if data.target_type == "seller":
+        review_query = {"seller_id": data.seller_id, "$or": [{"target_type": "seller"}, {"target_type": {"$exists": False}}]}
+        profile_collection = db.seller_profiles
+    else:
+        review_query = {"seller_id": data.seller_id, "target_type": "technician"}
+        profile_collection = db.technician_profiles
+    all_reviews = await db.reviews.find(review_query).to_list(1000)
     avg = round(sum(r["rating"] for r in all_reviews) / len(all_reviews), 1)
-    await db.seller_profiles.update_one({"user_id": data.seller_id}, {"$set": {"rating": avg, "review_count": len(all_reviews)}})
-    await create_notification(data.seller_id, "review", f"Nouvo avi {data.rating} zetwal de @{user['username']}", "")
+    await profile_collection.update_one({"user_id": data.seller_id}, {"$set": {"rating": avg, "review_count": len(all_reviews)}})
+    notif_type = "review" if data.target_type == "seller" else "technician_review"
+    await create_notification(data.seller_id, notif_type, f"Nouvo avi {data.rating} zetwal de @{user['username']}", "")
     return {k: v for k, v in review.items() if k != "_id"}
 
 
