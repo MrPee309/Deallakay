@@ -21,31 +21,10 @@ from shared import db, client, NO_ID, now_iso, slugify, get_current_user, get_ad
 from routers.auth import router as auth_router
 from routers.products import router as products_router
 from routers.sellers import router as sellers_router
+from routers.social import router as social_router
 
 app = FastAPI(title="DealLakay API")
 api = APIRouter(prefix="/api")
-
-
-# ---------------- Models ----------------
-class MessageIn(BaseModel):
-    content: str
-
-
-class ConversationIn(BaseModel):
-    product_id: str
-
-
-class ReviewIn(BaseModel):
-    seller_id: str
-    rating: int
-    comment: str = ""
-
-
-class ReportIn(BaseModel):
-    target_type: str
-    target_id: str
-    reason: str
-    description: str = ""
 
 
 class CategoryIn(BaseModel):
@@ -89,163 +68,6 @@ async def get_categories():
 async def get_locations():
     return await db.locations.find({}, NO_ID).to_list(100)
 
-
-
-# ---------------- Messaging ----------------
-@api.post("/conversations")
-async def create_conversation(data: ConversationIn, user: dict = Depends(get_current_user)):
-    p = await db.products.find_one({"id": data.product_id})
-    if not p:
-        raise HTTPException(status_code=404, detail="Pwodwi pa jwenn.")
-    if p["seller_id"] == user["id"]:
-        raise HTTPException(status_code=400, detail="Ou pa ka voye mesaj ba tèt ou.")
-    existing = await db.conversations.find_one({"product_id": data.product_id, "buyer_id": user["id"]}, NO_ID)
-    if existing:
-        return existing
-    conv = {
-        "id": str(uuid.uuid4()),
-        "product_id": data.product_id,
-        "product_title": p["title"],
-        "product_image": (p.get("images") or [""])[0] if p.get("images") else "",
-        "buyer_id": user["id"],
-        "buyer_username": user["username"],
-        "seller_id": p["seller_id"],
-        "seller_username": p["seller_username"],
-        "last_message": "",
-        "created_at": now_iso(),
-        "updated_at": now_iso(),
-    }
-    await db.conversations.insert_one(dict(conv))
-    return conv
-
-
-@api.get("/conversations")
-async def list_conversations(user: dict = Depends(get_current_user)):
-    convs = await db.conversations.find({"$or": [{"buyer_id": user["id"]}, {"seller_id": user["id"]}]}, NO_ID).sort("updated_at", -1).to_list(200)
-    for c in convs:
-        c["unread"] = await db.messages.count_documents({"conversation_id": c["id"], "sender_id": {"$ne": user["id"]}, "read": False})
-        other_id = c["seller_id"] if c["buyer_id"] == user["id"] else c["buyer_id"]
-        other = await db.users.find_one({"id": other_id}, NO_ID)
-        c["other_user"] = {"username": other["username"], "avatar": other.get("avatar", "")} if other else {}
-    return convs
-
-
-@api.get("/conversations/{cid}/messages")
-async def get_messages(cid: str, user: dict = Depends(get_current_user)):
-    conv = await db.conversations.find_one({"id": cid}, NO_ID)
-    if not conv or user["id"] not in (conv["buyer_id"], conv["seller_id"]):
-        raise HTTPException(status_code=403, detail="Aksè refize.")
-    await db.messages.update_many({"conversation_id": cid, "sender_id": {"$ne": user["id"]}}, {"$set": {"read": True}})
-    msgs = await db.messages.find({"conversation_id": cid}, NO_ID).sort("created_at", 1).to_list(1000)
-    return {"conversation": conv, "messages": msgs}
-
-
-@api.post("/conversations/{cid}/messages")
-async def send_message(cid: str, data: MessageIn, user: dict = Depends(get_current_user)):
-    conv = await db.conversations.find_one({"id": cid})
-    if not conv or user["id"] not in (conv["buyer_id"], conv["seller_id"]):
-        raise HTTPException(status_code=403, detail="Aksè refize.")
-    msg = {
-        "id": str(uuid.uuid4()),
-        "conversation_id": cid,
-        "sender_id": user["id"],
-        "sender_username": user["username"],
-        "content": data.content,
-        "read": False,
-        "created_at": now_iso(),
-    }
-    await db.messages.insert_one(dict(msg))
-    await db.conversations.update_one({"id": cid}, {"$set": {"last_message": data.content, "updated_at": now_iso()}})
-    recipient = conv["seller_id"] if conv["buyer_id"] == user["id"] else conv["buyer_id"]
-    clean = {k: v for k, v in msg.items() if k != "_id"}
-    await manager.send(recipient, {"event": "message", "data": clean, "conversation_id": cid})
-    await create_notification(recipient, "message", f"Nouvo mesaj de @{user['username']}", "/messages")
-    return clean
-
-
-@app.websocket("/api/ws")
-async def websocket_endpoint(websocket: WebSocket, token: str = Query(...)):
-    try:
-        payload = auth_lib.decode_token(token)
-        user_id = payload["sub"]
-    except Exception:
-        await websocket.close(code=1008)
-        return
-    await manager.connect(user_id, websocket)
-    try:
-        while True:
-            await websocket.receive_text()
-    except WebSocketDisconnect:
-        manager.disconnect(user_id, websocket)
-    except Exception:
-        manager.disconnect(user_id, websocket)
-
-
-# ---------------- Reviews ----------------
-@api.post("/reviews")
-async def create_review(data: ReviewIn, user: dict = Depends(get_current_user)):
-    if data.rating < 1 or data.rating > 5:
-        raise HTTPException(status_code=400, detail="Rating dwe ant 1 ak 5.")
-    if data.seller_id == user["id"]:
-        raise HTTPException(status_code=400, detail="Ou pa ka evalye tèt ou.")
-    if await db.reviews.find_one({"seller_id": data.seller_id, "buyer_id": user["id"]}):
-        raise HTTPException(status_code=400, detail="Ou deja evalye vandè sa a.")
-    verified = bool(await db.conversations.find_one({"seller_id": data.seller_id, "buyer_id": user["id"]}))
-    review = {
-        "id": str(uuid.uuid4()),
-        "seller_id": data.seller_id,
-        "buyer_id": user["id"],
-        "buyer_username": user["username"],
-        "buyer_avatar": user.get("avatar", ""),
-        "rating": data.rating,
-        "comment": data.comment,
-        "verified": verified,
-        "created_at": now_iso(),
-    }
-    await db.reviews.insert_one(dict(review))
-    all_reviews = await db.reviews.find({"seller_id": data.seller_id}).to_list(1000)
-    avg = round(sum(r["rating"] for r in all_reviews) / len(all_reviews), 1)
-    await db.seller_profiles.update_one({"user_id": data.seller_id}, {"$set": {"rating": avg, "review_count": len(all_reviews)}})
-    await create_notification(data.seller_id, "review", f"Nouvo avi {data.rating} zetwal de @{user['username']}", "")
-    return {k: v for k, v in review.items() if k != "_id"}
-
-
-# ---------------- Reports ----------------
-@api.post("/reports")
-async def create_report(data: ReportIn, user: dict = Depends(get_current_user)):
-    report = {
-        "id": str(uuid.uuid4()),
-        "target_type": data.target_type,
-        "target_id": data.target_id,
-        "reporter_id": user["id"],
-        "reporter_username": user["username"],
-        "reason": data.reason,
-        "description": data.description,
-        "status": "open",
-        "created_at": now_iso(),
-    }
-    await db.reports.insert_one(dict(report))
-    return {"message": "Rapò ou voye. Mèsi."}
-
-
-# ---------------- Notifications ----------------
-@api.get("/notifications")
-async def get_notifications(user: dict = Depends(get_current_user)):
-    notifs = await db.notifications.find({"user_id": user["id"]}, NO_ID).sort("created_at", -1).to_list(100)
-    unread = await db.notifications.count_documents({"user_id": user["id"], "read": False})
-    return {"notifications": notifs, "unread": unread}
-
-
-@api.post("/notifications/read-all")
-async def read_all_notifications(user: dict = Depends(get_current_user)):
-    await db.notifications.update_many({"user_id": user["id"]}, {"$set": {"read": True}})
-    return {"message": "ok"}
-
-
-@api.post("/notifications/{nid}/read")
-async def read_notification(nid: str, user: dict = Depends(get_current_user)):
-    await db.notifications.update_one({"id": nid, "user_id": user["id"]}, {"$set": {"read": True}})
-    return {"message": "ok"}
 
 
 # ---------------- Admin ----------------
@@ -425,6 +247,7 @@ async def admin_update_settings(data: SettingsIn, admin: dict = Depends(get_admi
 app.include_router(auth_router)
 app.include_router(products_router)
 app.include_router(sellers_router)
+app.include_router(social_router)
 app.include_router(api)
 
 _cors_origins_env = os.environ.get("CORS_ORIGINS", "").strip()
