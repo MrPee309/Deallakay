@@ -13,9 +13,11 @@ import Register from "@/pages/Register";
 import VerifyEmail from "@/pages/VerifyEmail";
 import ForgotPassword from "@/pages/ForgotPassword";
 import ResetPassword from "@/pages/ResetPassword";
-import AddProduct from "@/pages/AddProduct";
-import SellerDashboard from "@/pages/SellerDashboard";
+import AddProduct from "@/pages/AddProduct";import SellerDashboard from "@/pages/SellerDashboard";
 import SellerProfile from "@/pages/SellerProfile";
+import Technicians from "@/pages/Technicians";
+import TechnicianProfile from "@/pages/TechnicianProfile";
+import BecomeTechnicianPage from "@/pages/BecomeTechnicianPage";
 import Messages from "@/pages/Messages";
 import Favorites from "@/pages/Favorites";
 import Notifications from "@/pages/Notifications";
@@ -42,6 +44,9 @@ function App() {
               <Route path="/browse" element={<Browse />} />
               <Route path="/product/:slug" element={<ProductPage />} />
               <Route path="/seller/:username" element={<SellerProfile />} />
+              <Route path="/technicians" element={<Technicians />} />
+              <Route path="/technician/:username" element={<TechnicianProfile />} />
+              <Route path="/become-technician" element={<ProtectedRoute><BecomeTechnicianPage /></ProtectedRoute>} />
               <Route path="/how-it-works" element={<HowItWorks />} />
               <Route path="/safety" element={<Safety />} />
 
