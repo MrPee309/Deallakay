@@ -13,6 +13,7 @@ from typing import List, Optional
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 
+import security
 from shared import db, NO_ID, now_iso, get_current_user
 
 router = APIRouter(prefix="/api", tags=["technicians"])
@@ -41,6 +42,12 @@ class TechnicianSettingsIn(BaseModel):
     whatsapp_number: Optional[str] = None
     show_phone: Optional[bool] = None
     avatar: Optional[str] = None
+
+
+class TechnicianWorkIn(BaseModel):
+    title: str
+    description: str = ""
+    images: List[str] = []
 
 
 @router.get("/technician-specialties")
@@ -176,3 +183,62 @@ async def technician_reviews(username: str):
     if not u:
         raise HTTPException(status_code=404, detail="Teknisyen pa jwenn.")
     return await db.reviews.find({"seller_id": u["id"], "target_type": "technician"}, NO_ID).sort("created_at", -1).to_list(200)
+
+
+# ---------------- Work portfolio ("shop" / galri travay) ----------------
+@router.post("/technician/work")
+async def create_work(data: TechnicianWorkIn, user: dict = Depends(get_current_user)):
+    if not user.get("is_technician"):
+        raise HTTPException(status_code=403, detail="Ou dwe yon teknisyen.")
+    if not data.title.strip():
+        raise HTTPException(status_code=400, detail="Antre yon tit.")
+    security.validate_images(data.images)
+    work = {
+        "id": str(uuid.uuid4()),
+        "technician_user_id": user["id"],
+        "title": data.title.strip(),
+        "description": data.description,
+        "images": data.images[:10],
+        "created_at": now_iso(),
+    }
+    await db.technician_work.insert_one(dict(work))
+    return {k: v for k, v in work.items() if k != "_id"}
+
+
+@router.get("/technician/work")
+async def my_work(user: dict = Depends(get_current_user)):
+    return await db.technician_work.find({"technician_user_id": user["id"]}, NO_ID).sort("created_at", -1).to_list(200)
+
+
+@router.put("/technician/work/{wid}")
+async def update_work(wid: str, data: TechnicianWorkIn, user: dict = Depends(get_current_user)):
+    w = await db.technician_work.find_one({"id": wid})
+    if not w:
+        raise HTTPException(status_code=404, detail="Pa jwenn.")
+    if w["technician_user_id"] != user["id"] and user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Ou pa gen dwa modifye.")
+    if not data.title.strip():
+        raise HTTPException(status_code=400, detail="Antre yon tit.")
+    security.validate_images(data.images)
+    updates = {"title": data.title.strip(), "description": data.description, "images": data.images[:10]}
+    await db.technician_work.update_one({"id": wid}, {"$set": updates})
+    return {"message": "ok"}
+
+
+@router.delete("/technician/work/{wid}")
+async def delete_work(wid: str, user: dict = Depends(get_current_user)):
+    w = await db.technician_work.find_one({"id": wid})
+    if not w:
+        raise HTTPException(status_code=404, detail="Pa jwenn.")
+    if w["technician_user_id"] != user["id"] and user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Ou pa gen dwa.")
+    await db.technician_work.delete_one({"id": wid})
+    return {"message": "Efase."}
+
+
+@router.get("/technicians/{username}/work")
+async def public_work(username: str):
+    u = await db.users.find_one({"username": username.lower()}, NO_ID)
+    if not u:
+        raise HTTPException(status_code=404, detail="Teknisyen pa jwenn.")
+    return await db.technician_work.find({"technician_user_id": u["id"]}, NO_ID).sort("created_at", -1).to_list(200)
