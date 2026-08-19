@@ -8,7 +8,7 @@ import { useApp } from "@/contexts/AppContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { getCatName } from "@/i18n";
 import { compressImage } from "@/lib/format";
-import { SPEC_SCHEMAS, CONDITIONS } from "@/lib/specSchemas";
+import { getSpecSchema, BRANDS, CONDITIONS } from "@/lib/specSchemas";
 import BecomeSeller from "@/components/BecomeSeller";
 import { FullLoader } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
@@ -65,7 +65,8 @@ export default function AddProduct() {
   const set = (k, v) => setF((s) => ({ ...s, [k]: v }));
   const setSpec = (k, v) => setF((s) => ({ ...s, specs: { ...s.specs, [k]: v } }));
   const dep = locations.find((d) => d.name === f.department);
-  const schema = cat ? (SPEC_SCHEMAS[cat.type] || []) : [];
+  const brandList = cat ? (BRANDS[cat.type] || null) : null;
+  const schema = cat ? getSpecSchema(cat.type, f.specs.brand, f.subcategory) : [];
 
   const onFiles = async (e) => {
     const files = Array.from(e.target.files || []);
@@ -204,6 +205,19 @@ export default function AddProduct() {
             </div>
           </div>
         </Section>
+
+        {brandList && (
+          <Section title="Mak">
+            <div>
+              <Label>Chwazi Mak {cat.type === "phone" ? "Telefòn" : "Laptop"} lan</Label>
+              <Select value={f.specs.brand || ""} onValueChange={(v) => setSpec("brand", v)}>
+                <SelectTrigger className="mt-1.5 h-11" data-testid="product-brand"><SelectValue placeholder="Chwazi mak" /></SelectTrigger>
+                <SelectContent>{brandList.map((b) => <SelectItem key={b} value={b}>{b}</SelectItem>)}</SelectContent>
+              </Select>
+              {!f.specs.brand && <p className="text-xs text-muted-foreground mt-1.5">Chwazi yon mak pou wè rès chan yo.</p>}
+            </div>
+          </Section>
+        )}
 
         {schema.length > 0 && (
           <Section title="Karakteristik">
