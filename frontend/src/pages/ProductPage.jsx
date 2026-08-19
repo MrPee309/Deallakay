@@ -157,6 +157,9 @@ export default function ProductPage() {
               <h1 className="font-display text-xl font-bold mt-3 leading-snug" data-testid="product-title">{p.title}</h1>
               <p className="font-display text-3xl font-800 text-primary mt-2" style={{ fontWeight: 800 }} data-testid="product-price">{formatPrice(p.price, p.currency)}</p>
               {p.quantity > 1 && <p className="text-sm text-muted-foreground mt-1">Kantite disponib: {p.quantity}</p>}
+              {p.quantity != null && p.quantity <= 0 && p.status !== "sold" && (
+                <p className="text-sm font-semibold text-destructive mt-1" data-testid="out-of-stock-note">Pa gen ankò an estòk — kontakte vandè a pou konnen si l ap remèt.</p>
+              )}
 
               <div className="flex flex-col gap-2 mt-3 text-sm text-muted-foreground">
                 <span className="flex items-center gap-1.5"><MapPin className="w-4 h-4" />{p.neighborhood ? `${p.neighborhood}, ` : ""}{p.city}, {p.department}</span>
