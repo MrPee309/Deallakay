@@ -63,6 +63,11 @@ export default function Profile() {
           <Button onClick={() => nav("/dashboard")} className="w-full h-11 bg-primary font-semibold" data-testid="profile-dashboard"><ShieldCheck className="w-4 h-4 mr-2" />Tablo Vandè</Button>
         )}
         {user.is_seller && <Button variant="outline" onClick={() => nav(`/seller/${user.username}`)} className="w-full h-11" data-testid="profile-public"><UserIcon className="w-4 h-4 mr-2" />Wè pwofil piblik mwen</Button>}
+        {!user.is_technician ? (
+          <Button onClick={() => nav("/become-technician")} variant="outline" className="w-full h-11 font-semibold" data-testid="profile-become-technician">Devni yon Teknisyen</Button>
+        ) : (
+          <Button onClick={() => nav("/technician-dashboard")} variant="outline" className="w-full h-11 font-semibold" data-testid="profile-tech-dashboard">Tablo Teknisyen</Button>
+        )}
         {user.role === "admin" && <Button variant="outline" onClick={() => nav("/admin")} className="w-full h-11" data-testid="profile-admin"><ShieldCheck className="w-4 h-4 mr-2" />Admin Panel</Button>}
         <Button variant="outline" onClick={logoutAll} className="w-full h-11" data-testid="logout-all-btn"><ShieldOff className="w-4 h-4 mr-2" />Dekonekte tout sesyon</Button>
         <Button variant="ghost" onClick={() => { logout(); nav("/"); }} className="w-full h-11 text-destructive" data-testid="profile-logout"><LogOut className="w-4 h-4 mr-2" />Dekonekte</Button>
