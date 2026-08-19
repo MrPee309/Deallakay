@@ -153,6 +153,24 @@ async def admin_verify_seller(vid: str, decision: str, admin: dict = Depends(get
     return {"message": "ok"}
 
 
+@router.get("/technician-verifications")
+async def admin_technician_verifications(admin: dict = Depends(get_admin)):
+    return await db.technician_verifications.find({}, NO_ID).sort("created_at", -1).to_list(500)
+
+
+@router.put("/technician-verifications/{vid}/{decision}")
+async def admin_verify_technician(vid: str, decision: str, admin: dict = Depends(get_admin)):
+    v = await db.technician_verifications.find_one({"id": vid})
+    if not v:
+        raise HTTPException(status_code=404, detail="Pa jwenn.")
+    status = "approved" if decision == "approve" else "rejected"
+    await db.technician_verifications.update_one({"id": vid}, {"$set": {"status": status}})
+    if decision == "approve":
+        await db.technician_profiles.update_one({"user_id": v["user_id"]}, {"$set": {"technician_verified": True}})
+        await create_notification(v["user_id"], "verified", "Ou se yon Teknisyen Verifye kounye a!", "")
+    return {"message": "ok"}
+
+
 @router.post("/categories")
 async def admin_add_category(data: CategoryIn, admin: dict = Depends(get_admin)):
     cnt = await db.categories.count_documents({})
