@@ -8,7 +8,7 @@ import { useApp } from "@/contexts/AppContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { getCatName } from "@/i18n";
 import { compressImage } from "@/lib/format";
-import { getSpecSchema, BRANDS, CONDITIONS } from "@/lib/specSchemas";
+import { getSpecSchema, CONDITIONS } from "@/lib/specSchemas";
 import BecomeSeller from "@/components/BecomeSeller";
 import { FullLoader } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
@@ -65,8 +65,7 @@ export default function AddProduct() {
   const set = (k, v) => setF((s) => ({ ...s, [k]: v }));
   const setSpec = (k, v) => setF((s) => ({ ...s, specs: { ...s.specs, [k]: v } }));
   const dep = locations.find((d) => d.name === f.department);
-  const brandList = cat ? (BRANDS[cat.type] || null) : null;
-  const schema = cat ? getSpecSchema(cat.type, f.specs.brand, f.subcategory) : [];
+  const schema = cat ? getSpecSchema(cat.type, f.subcategory) : [];
 
   const onFiles = async (e) => {
     const files = Array.from(e.target.files || []);
@@ -90,6 +89,7 @@ export default function AddProduct() {
     if (!f.title.trim()) return toast.error("Antre yon tit.");
     if (!f.price || Number(f.price) <= 0) return toast.error("Antre yon pri valab.");
     if (!f.department || !f.city) return toast.error("Chwazi lokasyon.");
+    if ((cat.type === "phone" || cat.type === "laptop") && !f.subcategory) return toast.error("Chwazi mak aparèy la.");
     setSaving(true);
     const payload = {
       category: cat.type, subcategory: f.subcategory || null, title: f.title, description: f.description,
@@ -173,9 +173,9 @@ export default function AddProduct() {
               <Label>Tit</Label>
               <Input value={f.title} onChange={(e) => set("title", e.target.value)} data-testid="product-title-input" className="mt-1.5 h-11" placeholder="iPhone 13 Pro Max 256GB" />
             </div>
-            {cat.subcategories.length > 0 && (
+            {cat.subcategories.length > 0 && cat.type !== "phone" && cat.type !== "laptop" && (
               <div>
-                <Label>{cat.type === "phone" || cat.type === "laptop" ? "Mak" : "Sou-kategori"}</Label>
+                <Label>Sou-kategori</Label>
                 <Select value={f.subcategory} onValueChange={(v) => set("subcategory", v)}>
                   <SelectTrigger className="mt-1.5 h-11" data-testid="product-subcategory"><SelectValue placeholder="Chwazi" /></SelectTrigger>
                   <SelectContent>{cat.subcategories.map((s) => <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>)}</SelectContent>
@@ -206,15 +206,15 @@ export default function AddProduct() {
           </div>
         </Section>
 
-        {brandList && (
+        {(cat.type === "phone" || cat.type === "laptop") && (
           <Section title="Mak">
             <div>
               <Label>Chwazi Mak {cat.type === "phone" ? "Telefòn" : "Laptop"} lan</Label>
-              <Select value={f.specs.brand || ""} onValueChange={(v) => setSpec("brand", v)}>
-                <SelectTrigger className="mt-1.5 h-11" data-testid="product-brand"><SelectValue placeholder="Chwazi mak" /></SelectTrigger>
-                <SelectContent>{brandList.map((b) => <SelectItem key={b} value={b}>{b}</SelectItem>)}</SelectContent>
+              <Select value={f.subcategory} onValueChange={(v) => set("subcategory", v)}>
+                <SelectTrigger className="mt-1.5 h-11" data-testid="product-subcategory"><SelectValue placeholder="Chwazi mak" /></SelectTrigger>
+                <SelectContent>{cat.subcategories.map((s) => <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>)}</SelectContent>
               </Select>
-              {!f.specs.brand && <p className="text-xs text-muted-foreground mt-1.5">Chwazi yon mak pou wè rès chan yo.</p>}
+              {!f.subcategory && <p className="text-xs text-muted-foreground mt-1.5">Chwazi yon mak pou wè rès chan yo.</p>}
             </div>
           </Section>
         )}
