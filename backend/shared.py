@@ -87,6 +87,7 @@ def public_user(u: dict) -> dict:
         "email_verified": u.get("email_verified", False),
         "phone_verified": u.get("phone_verified", False),
         "is_seller": u.get("is_seller", False),
+        "is_technician": u.get("is_technician", False),
         "avatar": u.get("avatar", ""),
         "created_at": u.get("created_at"),
     }
