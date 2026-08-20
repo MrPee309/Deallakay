@@ -67,8 +67,15 @@ def rate_limit(bucket: str, max_attempts: int, window_seconds: int):
 
 
 # ---------------- Image upload validation ----------------
-MAX_IMAGE_BYTES = int(os.environ.get("IMAGE_MAX_BYTES", 6 * 1024 * 1024))  # 6 MB default
-MAX_IMAGES_PER_PRODUCT = int(os.environ.get("IMAGE_MAX_COUNT", 10))
+# Conservative defaults for now: MongoDB Atlas free tier caps out at 512MB
+# total. At 6MB x 10 images, a SINGLE listing could use ~60MB — over 10% of
+# the whole database in one product. 2MB x 6 keeps worst-case abuse well
+# under 15MB per listing, while still being generous for a compressed photo
+# (the frontend already compresses uploads to well under 500KB typically).
+# Raise these via env vars once storage capacity grows (e.g. a paid Atlas
+# tier or a move to external image storage) — no code change needed.
+MAX_IMAGE_BYTES = int(os.environ.get("IMAGE_MAX_BYTES", 2 * 1024 * 1024))  # 2 MB default
+MAX_IMAGES_PER_PRODUCT = int(os.environ.get("IMAGE_MAX_COUNT", 6))
 
 _MAGIC_BYTES = {
     "image/jpeg": (b"\xff\xd8\xff",),
