@@ -69,8 +69,8 @@ export default function AddProduct() {
 
   const onFiles = async (e) => {
     const files = Array.from(e.target.files || []);
-    const room = 10 - f.images.length;
-    if (files.length > room) toast.info(`Maksimòm 10 foto. ${room} espas rete.`);
+    const room = 6 - f.images.length;
+    if (files.length > room) toast.info(`Maksimòm 6 foto. ${room} espas rete.`);
     const toAdd = files.slice(0, room);
     try {
       const compressed = await Promise.all(toAdd.map((file) => compressImage(file)));
@@ -157,7 +157,7 @@ export default function AddProduct() {
                 </button>
               </div>
             ))}
-            {f.images.length < 10 && (
+            {f.images.length < 6 && (
               <label className="aspect-square rounded-lg border-2 border-dashed border-border flex flex-col items-center justify-center cursor-pointer hover:border-primary text-muted-foreground" data-testid="upload-images">
                 <ImagePlus className="w-6 h-6" />
                 <span className="text-[10px] mt-1">Ajoute</span>
