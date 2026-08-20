@@ -101,33 +101,45 @@ function AlertForm({ onDone }) {
       <div><Label>Mo kle (opsyonèl)</Label><Input value={f.keyword} onChange={(e) => set("keyword", e.target.value)} data-testid="alert-keyword" className="mt-1.5 h-11" placeholder="iPhone 13" /></div>
       <div>
         <Label>Kategori (opsyonèl)</Label>
-        <Select value={f.category} onValueChange={(v) => { set("category", v); set("subcategory", ""); }}>
+        <Select value={f.category || "any"} onValueChange={(v) => { set("category", v === "any" ? "" : v); set("subcategory", ""); }}>
           <SelectTrigger className="mt-1.5 h-11" data-testid="alert-category"><SelectValue placeholder="Nenpòt" /></SelectTrigger>
-          <SelectContent>{categories.map((c) => <SelectItem key={c.id} value={c.type}>{c.name_ht}</SelectItem>)}</SelectContent>
+          <SelectContent>
+            <SelectItem value="any">Nenpòt</SelectItem>
+            {categories.map((c) => <SelectItem key={c.id} value={c.type}>{c.name_ht}</SelectItem>)}
+          </SelectContent>
         </Select>
       </div>
       {cat?.subcategories?.length > 0 && (
         <div>
           <Label>Sou-kategori (opsyonèl)</Label>
-          <Select value={f.subcategory} onValueChange={(v) => set("subcategory", v)}>
+          <Select value={f.subcategory || "any"} onValueChange={(v) => set("subcategory", v === "any" ? "" : v)}>
             <SelectTrigger className="mt-1.5 h-11" data-testid="alert-subcategory"><SelectValue placeholder="Nenpòt" /></SelectTrigger>
-            <SelectContent>{cat.subcategories.map((s) => <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>)}</SelectContent>
+            <SelectContent>
+              <SelectItem value="any">Nenpòt</SelectItem>
+              {cat.subcategories.map((s) => <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>)}
+            </SelectContent>
           </Select>
         </div>
       )}
       <div className="grid grid-cols-2 gap-3">
         <div>
           <Label>Depatman (opsyonèl)</Label>
-          <Select value={f.department} onValueChange={(v) => { set("department", v); set("city", ""); }}>
+          <Select value={f.department || "any"} onValueChange={(v) => { set("department", v === "any" ? "" : v); set("city", ""); }}>
             <SelectTrigger className="mt-1.5 h-11" data-testid="alert-department"><SelectValue placeholder="Nenpòt" /></SelectTrigger>
-            <SelectContent>{locations.map((d) => <SelectItem key={d.id} value={d.name}>{d.name}</SelectItem>)}</SelectContent>
+            <SelectContent>
+              <SelectItem value="any">Nenpòt</SelectItem>
+              {locations.map((d) => <SelectItem key={d.id} value={d.name}>{d.name}</SelectItem>)}
+            </SelectContent>
           </Select>
         </div>
         <div>
           <Label>Vil (opsyonèl)</Label>
-          <Select value={f.city} onValueChange={(v) => set("city", v)} disabled={!dep}>
+          <Select value={f.city || "any"} onValueChange={(v) => set("city", v === "any" ? "" : v)} disabled={!dep}>
             <SelectTrigger className="mt-1.5 h-11" data-testid="alert-city"><SelectValue placeholder="Nenpòt" /></SelectTrigger>
-            <SelectContent>{dep?.cities.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+            <SelectContent>
+              <SelectItem value="any">Nenpòt</SelectItem>
+              {dep?.cities.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+            </SelectContent>
           </Select>
         </div>
       </div>
