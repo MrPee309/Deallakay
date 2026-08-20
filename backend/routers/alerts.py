@@ -12,7 +12,7 @@ from pydantic import BaseModel
 
 from shared import db, NO_ID, now_iso, get_current_user
 
-router = APIRouter(prefix="/api/alerts", tags=["alerts"])
+router = APIRouter(prefix="/api", tags=["alerts"])
 
 
 class AlertIn(BaseModel):
@@ -24,7 +24,7 @@ class AlertIn(BaseModel):
     max_price: Optional[float] = None
 
 
-@router.post("")
+@router.post("/alerts")
 async def create_alert(data: AlertIn, user: dict = Depends(get_current_user)):
     if not any([data.keyword, data.category, data.department, data.max_price]):
         raise HTTPException(status_code=400, detail="Mete omwen yon kritè pou alèt la.")
@@ -46,12 +46,12 @@ async def create_alert(data: AlertIn, user: dict = Depends(get_current_user)):
     return {k: v for k, v in alert.items() if k != "_id"}
 
 
-@router.get("")
+@router.get("/alerts")
 async def my_alerts(user: dict = Depends(get_current_user)):
     return await db.deal_alerts.find({"user_id": user["id"]}, NO_ID).sort("created_at", -1).to_list(50)
 
 
-@router.put("/{aid}")
+@router.put("/alerts/{aid}")
 async def update_alert(aid: str, data: AlertIn, user: dict = Depends(get_current_user)):
     a = await db.deal_alerts.find_one({"id": aid})
     if not a or a["user_id"] != user["id"]:
@@ -62,7 +62,7 @@ async def update_alert(aid: str, data: AlertIn, user: dict = Depends(get_current
     return {"message": "Alèt modifye."}
 
 
-@router.put("/{aid}/toggle")
+@router.put("/alerts/{aid}/toggle")
 async def toggle_alert(aid: str, user: dict = Depends(get_current_user)):
     a = await db.deal_alerts.find_one({"id": aid})
     if not a or a["user_id"] != user["id"]:
@@ -71,7 +71,7 @@ async def toggle_alert(aid: str, user: dict = Depends(get_current_user)):
     return {"message": "ok"}
 
 
-@router.delete("/{aid}")
+@router.delete("/alerts/{aid}")
 async def delete_alert(aid: str, user: dict = Depends(get_current_user)):
     a = await db.deal_alerts.find_one({"id": aid})
     if not a or a["user_id"] != user["id"]:
