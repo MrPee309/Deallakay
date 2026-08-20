@@ -15,6 +15,7 @@ export default function Header() {
   const { user, logout, notifCount } = useAuth();
   const nav = useNavigate();
   const [q, setQ] = useState("");
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const submitSearch = (e) => {
     e.preventDefault();
@@ -26,32 +27,6 @@ export default function Header() {
       <div className="max-w-7xl mx-auto px-4 lg:px-6">
         <div className="flex items-center gap-4 h-16">
           <Logo />
-
-          <Sheet>
-            <SheetTrigger asChild>
-              <button data-testid="mobile-menu-trigger" className="md:hidden w-9 h-9 rounded-full hover:bg-muted flex items-center justify-center shrink-0">
-                <Menu className="w-5 h-5" />
-              </button>
-            </SheetTrigger>
-            <SheetContent side="left" className="w-72 overflow-y-auto">
-              <div className="flex flex-col gap-1 mt-8">
-                <Link to="/browse" data-testid="mobile-nav-all" className="text-sm font-medium px-3 py-2.5 rounded-lg hover:bg-muted flex items-center gap-2">
-                  <Menu className="w-4 h-4" /> {t("all")}
-                </Link>
-                {categories.map((c) => {
-                  const Ico = Icons[c.icon?.replace(/(^\w|-\w)/g, (m) => m.replace("-", "").toUpperCase())] || Icons.Tag;
-                  return (
-                    <Link key={c.id} to={`/browse?category=${c.type}`} data-testid={`mobile-nav-cat-${c.type}`} className="text-sm font-medium px-3 py-2.5 rounded-lg hover:bg-muted flex items-center gap-2 text-muted-foreground">
-                      <Ico className="w-4 h-4" /> {getCatName(c, lang)}
-                    </Link>
-                  );
-                })}
-                <Link to="/technicians" data-testid="mobile-nav-technicians" className="text-sm font-medium px-3 py-2.5 rounded-lg hover:bg-muted flex items-center gap-2 text-muted-foreground">
-                  <Icons.Wrench className="w-4 h-4" /> Teknisyen
-                </Link>
-              </div>
-            </SheetContent>
-          </Sheet>
 
           <form onSubmit={submitSearch} className="hidden md:flex flex-1 max-w-xl">
             <div className="relative w-full">
@@ -122,10 +97,42 @@ export default function Header() {
               </>
             ) : (
               <>
-                <Link to="/login"><Button variant="ghost" className="h-9 rounded-full" data-testid="header-login-btn">{t("login")}</Button></Link>
+                <Link to="/login" className="hidden md:block"><Button variant="ghost" className="h-9 rounded-full" data-testid="header-login-btn">{t("login")}</Button></Link>
                 <Link to="/register" className="hidden sm:block"><Button className="h-9 rounded-full bg-primary" data-testid="header-register-btn">{t("register")}</Button></Link>
               </>
             )}
+
+            <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
+              <SheetTrigger asChild>
+                <button data-testid="mobile-menu-trigger" className="md:hidden w-9 h-9 rounded-full hover:bg-muted flex items-center justify-center shrink-0">
+                  <Menu className="w-5 h-5" />
+                </button>
+              </SheetTrigger>
+              <SheetContent side="right" className="w-72 overflow-y-auto flex flex-col">
+                <div className="flex flex-col gap-1 mt-8">
+                  <Link to="/browse" onClick={() => setMenuOpen(false)} data-testid="mobile-nav-all" className="text-sm font-medium px-3 py-2.5 rounded-lg hover:bg-muted flex items-center gap-2">
+                    <Menu className="w-4 h-4" /> {t("all")}
+                  </Link>
+                  {categories.map((c) => {
+                    const Ico = Icons[c.icon?.replace(/(^\w|-\w)/g, (m) => m.replace("-", "").toUpperCase())] || Icons.Tag;
+                    return (
+                      <Link key={c.id} to={`/browse?category=${c.type}`} onClick={() => setMenuOpen(false)} data-testid={`mobile-nav-cat-${c.type}`} className="text-sm font-medium px-3 py-2.5 rounded-lg hover:bg-muted flex items-center gap-2 text-muted-foreground">
+                        <Ico className="w-4 h-4" /> {getCatName(c, lang)}
+                      </Link>
+                    );
+                  })}
+                  <Link to="/technicians" onClick={() => setMenuOpen(false)} data-testid="mobile-nav-technicians" className="text-sm font-medium px-3 py-2.5 rounded-lg hover:bg-muted flex items-center gap-2 text-muted-foreground">
+                    <Icons.Wrench className="w-4 h-4" /> Teknisyen
+                  </Link>
+                </div>
+                {!(user && user.id) && (
+                  <div className="mt-auto pt-4 border-t border-border flex flex-col gap-2">
+                    <Link to="/login" onClick={() => setMenuOpen(false)}><Button variant="outline" className="w-full h-11" data-testid="mobile-login-btn">{t("login")}</Button></Link>
+                    <Link to="/register" onClick={() => setMenuOpen(false)}><Button className="w-full h-11 bg-primary" data-testid="mobile-register-btn">{t("register")}</Button></Link>
+                  </div>
+                )}
+              </SheetContent>
+            </Sheet>
           </div>
         </div>
 
