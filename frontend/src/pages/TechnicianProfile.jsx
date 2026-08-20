@@ -202,7 +202,7 @@ function ReviewDialog({ technicianId, onDone }) {
         <DialogHeader><DialogTitle>Evalye teknisyen an</DialogTitle></DialogHeader>
         <div className="flex gap-1 justify-center py-2">
           {Array.from({ length: 5 }).map((_, i) => (
-            <button key={i} onClick={() => setRating(i + 1)} data-testid={`tech-star-${i + 1}`}><Star className={`w-8 h-8 ${i < rating ? "fill-secondary text-secondary" : "text-muted"}`} /></button>
+            <button key={i} type="button" onClick={() => setRating(i + 1)} data-testid={`tech-star-${i + 1}`}><Star className={`w-8 h-8 ${i < rating ? "fill-secondary text-secondary" : "text-muted"}`} /></button>
           ))}
         </div>
         <Textarea placeholder="Kòmantè w (opsyonèl)" value={comment} onChange={(e) => setComment(e.target.value)} data-testid="technician-review-comment" />
