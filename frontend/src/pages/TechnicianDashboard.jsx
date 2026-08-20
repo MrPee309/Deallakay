@@ -256,7 +256,7 @@ function WorkFormDialog({ work, onClose, onSaved }) {
 
   const onFiles = async (e) => {
     const files = Array.from(e.target.files || []);
-    const room = 10 - images.length;
+    const room = 6 - images.length;
     const toAdd = files.slice(0, room);
     try {
       const compressed = await Promise.all(toAdd.map((file) => compressImage(file)));
@@ -300,7 +300,7 @@ function WorkFormDialog({ work, onClose, onSaved }) {
                   <button onClick={() => removeImg(i)} className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/60 text-white flex items-center justify-center" data-testid={`remove-work-img-${i}`}><X className="w-3 h-3" /></button>
                 </div>
               ))}
-              {images.length < 10 && (
+              {images.length < 6 && (
                 <label className="aspect-square rounded-lg border-2 border-dashed border-border flex flex-col items-center justify-center cursor-pointer hover:border-primary text-muted-foreground" data-testid="upload-work-images">
                   <ImagePlus className="w-5 h-5" />
                   <input type="file" accept="image/jpeg,image/png,image/webp" multiple className="hidden" onChange={onFiles} />
