@@ -102,7 +102,8 @@ async def get_request(rid: str, user: dict = Depends(get_current_user)):
         raise HTTPException(status_code=404, detail="Demann pa jwenn.")
     is_owner = r["user_id"] == user["id"]
     offers = await db.part_offers.find({"request_id": rid}, NO_ID).sort("created_at", 1).to_list(200) if is_owner else []
-    return {"request": r, "offers": offers, "is_owner": is_owner}
+    my_offer = None if is_owner else await db.part_offers.find_one({"request_id": rid, "seller_id": user["id"]}, NO_ID)
+    return {"request": r, "offers": offers, "is_owner": is_owner, "my_offer": my_offer}
 
 
 @router.put("/requests/{rid}/close")
@@ -114,6 +115,61 @@ async def close_request(rid: str, user: dict = Depends(get_current_user)):
         raise HTTPException(status_code=403, detail="Ou pa gen dwa.")
     await db.part_requests.update_one({"id": rid}, {"$set": {"status": "closed"}})
     return {"message": "Demann fèmen."}
+
+
+@router.put("/requests/{rid}/offers/{oid}/propose-accept")
+async def propose_accept_offer(rid: str, oid: str, user: dict = Depends(get_current_user)):
+    """Owner's side of the handshake: signals intent to accept, but the deal
+    only becomes final once the offerer confirms via /confirm below — an
+    offer can't be accepted unilaterally without the offerer agreeing too."""
+    r = await db.part_requests.find_one({"id": rid})
+    if not r:
+        raise HTTPException(status_code=404, detail="Demann pa jwenn.")
+    if r["user_id"] != user["id"]:
+        raise HTTPException(status_code=403, detail="Ou pa gen dwa.")
+    if r["status"] != "open":
+        raise HTTPException(status_code=400, detail="Demann sa deja fèmen/rezoud.")
+    o = await db.part_offers.find_one({"id": oid, "request_id": rid})
+    if not o:
+        raise HTTPException(status_code=404, detail="Òf pa jwenn.")
+    await db.part_offers.update_one({"id": oid}, {"$set": {"owner_accepted": True}})
+    await create_notification(o["seller_id"], "offer_proposed", f"@{user['username']} vle aksepte òf ou sou '{r['title']}' — konfime pou fini.", f"/requests/{rid}")
+    return {"message": "Pwopozisyon voye. Tann konfimasyon moun ki fè òf la."}
+
+
+@router.put("/requests/{rid}/offers/{oid}/confirm")
+async def confirm_offer(rid: str, oid: str, user: dict = Depends(get_current_user)):
+    """Offerer's side of the handshake — only they can finalize their own offer."""
+    o = await db.part_offers.find_one({"id": oid, "request_id": rid})
+    if not o:
+        raise HTTPException(status_code=404, detail="Òf pa jwenn.")
+    if o["seller_id"] != user["id"]:
+        raise HTTPException(status_code=403, detail="Ou pa gen dwa.")
+    if not o.get("owner_accepted"):
+        raise HTTPException(status_code=400, detail="Pwopriyetè demann lan poko pwopoze aksepte òf sa.")
+    r = await db.part_requests.find_one({"id": rid})
+    if not r or r["status"] != "open":
+        raise HTTPException(status_code=400, detail="Demann sa pa disponib ankò.")
+    await db.part_offers.update_one({"id": oid}, {"$set": {"seller_confirmed": True}})
+    await db.part_requests.update_one({"id": rid}, {"$set": {"status": "fulfilled", "accepted_offer_id": oid}})
+    await create_notification(r["user_id"], "offer_confirmed", f"@{user['username']} konfime — antant lan fini pou '{r['title']}'!", f"/requests/{rid}")
+    return {"message": "Konfime! Antant lan fini."}
+
+
+@router.put("/requests/{rid}/offers/{oid}/decline")
+async def decline_offer_proposal(rid: str, oid: str, user: dict = Depends(get_current_user)):
+    """Offerer declines the owner's accept proposal (e.g. after discussing and
+    changing their mind) — resets the proposal instead of forcing a deal through."""
+    o = await db.part_offers.find_one({"id": oid, "request_id": rid})
+    if not o:
+        raise HTTPException(status_code=404, detail="Òf pa jwenn.")
+    if o["seller_id"] != user["id"]:
+        raise HTTPException(status_code=403, detail="Ou pa gen dwa.")
+    r = await db.part_requests.find_one({"id": rid})
+    await db.part_offers.update_one({"id": oid}, {"$set": {"owner_accepted": False}})
+    if r:
+        await create_notification(r["user_id"], "offer_declined", f"@{user['username']} pa dakò ak pwopozisyon an sou '{r['title']}'.", f"/requests/{rid}")
+    return {"message": "Pwopozisyon refize."}
 
 
 @router.delete("/requests/{rid}")
@@ -154,6 +210,8 @@ async def create_offer(rid: str, data: OfferIn, user: dict = Depends(get_current
         "price": data.price,
         "message": data.message,
         "images": data.images[:6],
+        "owner_accepted": False,
+        "seller_confirmed": False,
         "created_at": now_iso(),
     }
     await db.part_offers.insert_one(dict(offer))
