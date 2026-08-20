@@ -58,6 +58,33 @@ def strip_private(p: dict, is_owner=False):
     return p
 
 
+async def _notify_matching_alerts(product: dict):
+    """When a product is published, alert any buyer whose saved Deal Alert
+    criteria match it — structured filters (category/subcategory/department/
+    city/max_price) are matched directly in the DB query; keyword is matched
+    in-app against the product's search_text since it's a per-alert substring
+    check MongoDB can't express well as a single query."""
+    if product["status"] != "active":
+        return
+    query: Dict[str, Any] = {
+        "active": True,
+        "user_id": {"$ne": product["seller_id"]},
+        "$and": [
+            {"$or": [{"category": None}, {"category": product["category"]}]},
+            {"$or": [{"subcategory": None}, {"subcategory": product.get("subcategory")}]},
+            {"$or": [{"department": None}, {"department": product["department"]}]},
+            {"$or": [{"city": None}, {"city": product["city"]}]},
+            {"$or": [{"max_price": None}, {"max_price": {"$gte": product["price"]}}]},
+        ],
+    }
+    candidates = await db.deal_alerts.find(query, NO_ID).to_list(2000)
+    search_text = product.get("search_text", "")
+    for a in candidates:
+        if a.get("keyword") and a["keyword"].lower() not in search_text:
+            continue
+        await create_notification(a["user_id"], "deal_alert", f"Nouvo pwodwi ki matche alèt ou: '{product['title']}'", f"/product/{product['slug']}")
+
+
 @router.post("/products")
 async def create_product(data: ProductIn, user: dict = Depends(get_current_user)):
     if not user.get("is_seller"):
@@ -103,6 +130,7 @@ async def create_product(data: ProductIn, user: dict = Depends(get_current_user)
         "updated_at": now_iso(),
     }
     await db.products.insert_one(doc)
+    await _notify_matching_alerts(doc)
     return strip_private(doc, is_owner=True)
 
 
