@@ -18,6 +18,9 @@ import SellerProfile from "@/pages/SellerProfile";
 import Technicians from "@/pages/Technicians";
 import TechnicianProfile from "@/pages/TechnicianProfile";
 import BecomeTechnicianPage from "@/pages/BecomeTechnicianPage";
+import Requests from "@/pages/Requests";
+import RequestDetail from "@/pages/RequestDetail";
+import PostRequest from "@/pages/PostRequest";
 import TechnicianDashboard from "@/pages/TechnicianDashboard";
 import Messages from "@/pages/Messages";
 import Favorites from "@/pages/Favorites";
@@ -49,6 +52,9 @@ function App() {
               <Route path="/technician/:username" element={<TechnicianProfile />} />
               <Route path="/become-technician" element={<ProtectedRoute><BecomeTechnicianPage /></ProtectedRoute>} />
               <Route path="/technician-dashboard" element={<ProtectedRoute><TechnicianDashboard /></ProtectedRoute>} />
+              <Route path="/requests" element={<Requests />} />
+              <Route path="/requests/:id" element={<ProtectedRoute><RequestDetail /></ProtectedRoute>} />
+              <Route path="/post-request" element={<ProtectedRoute><PostRequest /></ProtectedRoute>} />
               <Route path="/how-it-works" element={<HowItWorks />} />
               <Route path="/safety" element={<Safety />} />
 
