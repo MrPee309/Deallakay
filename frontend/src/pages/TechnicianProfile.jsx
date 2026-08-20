@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { toast } from "sonner";
-import { MapPin, Calendar, Star, ShieldCheck, Wrench, Loader2 } from "lucide-react";import api, { apiError } from "@/lib/api";
+import { MapPin, Calendar, Star, ShieldCheck, Wrench, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
+import api, { apiError } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { useApp } from "@/contexts/AppContext";
 import { timeAgo } from "@/lib/format";
@@ -18,6 +19,7 @@ export default function TechnicianProfile() {
   const [d, setD] = useState(null);
   const [reviews, setReviews] = useState([]);
   const [work, setWork] = useState([]);
+  const [openWork, setOpenWork] = useState(null);
   const [loading, setLoading] = useState(true);
 
   const load = async () => {
@@ -47,6 +49,7 @@ export default function TechnicianProfile() {
             <div className="flex items-center gap-2 flex-wrap">
               <h1 className="font-display text-2xl font-bold">{u.full_name}</h1>
               {profile.technician_verified && <ShieldCheck className="w-6 h-6 text-primary" />}
+              {profile.availability && <AvailabilityBadge status={profile.availability} />}
             </div>
             <p className="text-muted-foreground">@{u.username}</p>
             {profile.bio && <p className="text-sm mt-2">{profile.bio}</p>}
@@ -55,6 +58,7 @@ export default function TechnicianProfile() {
               <span className="flex items-center gap-1"><Calendar className="w-4 h-4" />Manm depi {timeAgo(u.created_at, lang)}</span>
               {profile.years_experience != null && <span className="flex items-center gap-1"><Wrench className="w-4 h-4" />{profile.years_experience} ane eksperyans</span>}
               {profile.review_count > 0 && <span className="flex items-center gap-1"><Star className="w-4 h-4 fill-secondary text-secondary" />{profile.rating} ({profile.review_count})</span>}
+              {profile.languages?.length > 0 && <span>Pale: {profile.languages.join(", ")}</span>}
             </div>
             <div className="flex flex-wrap gap-1.5 mt-3">
               {(profile.specialties || []).map((s) => (
@@ -84,17 +88,21 @@ export default function TechnicianProfile() {
           {work.length === 0 ? <div className="text-center py-16 text-muted-foreground">Teknisyen sa poko poste travay.</div> : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {work.map((w) => (
-                <div key={w.id} className="bg-card border border-border rounded-xl overflow-hidden" data-testid={`public-work-${w.id}`}>
-                  <div className="aspect-video bg-muted">
+                <button key={w.id} onClick={() => setOpenWork(w)} data-testid={`public-work-${w.id}`}
+                  className="text-left bg-card border border-border rounded-xl overflow-hidden hover:shadow-md hover:-translate-y-0.5 transition-all">
+                  <div className="aspect-square bg-muted relative">
                     {w.images?.[0] ? <img src={w.images[0]} alt="" className="w-full h-full object-cover" /> : (
                       <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs">Pa gen foto</div>
                     )}
+                    {w.images?.length > 1 && (
+                      <span className="absolute bottom-2 right-2 bg-black/60 text-white text-[10px] font-semibold px-2 py-0.5 rounded-full">{w.images.length} foto</span>
+                    )}
                   </div>
                   <div className="p-3">
-                    <h4 className="font-semibold text-sm">{w.title}</h4>
-                    {w.description && <p className="text-xs text-muted-foreground mt-1">{w.description}</p>}
+                    <h4 className="font-semibold text-sm truncate">{w.title}</h4>
+                    {w.description && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{w.description}</p>}
                   </div>
-                </div>
+                </button>
               ))}
             </div>
           )}
@@ -118,7 +126,43 @@ export default function TechnicianProfile() {
           )}
         </TabsContent>
       </Tabs>
+      {openWork && <WorkGalleryDialog work={openWork} onClose={() => setOpenWork(null)} />}
     </div>
+  );
+}
+
+function WorkGalleryDialog({ work, onClose }) {
+  const [idx, setIdx] = useState(0);
+  const images = work.images?.length ? work.images : [null];
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-3xl">
+        <DialogHeader><DialogTitle>{work.title}</DialogTitle></DialogHeader>
+        <div className="relative aspect-square md:aspect-[4/3] bg-muted rounded-xl overflow-hidden">
+          {images[idx] ? (
+            <img src={images[idx]} alt={work.title} className="w-full h-full object-contain" data-testid="work-gallery-main-image" />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-muted-foreground">Pa gen foto</div>
+          )}
+          {images.length > 1 && (
+            <>
+              <button onClick={() => setIdx((i) => (i - 1 + images.length) % images.length)} className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/90 shadow flex items-center justify-center hover:bg-white"><ChevronLeft className="w-5 h-5" /></button>
+              <button onClick={() => setIdx((i) => (i + 1) % images.length)} className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/90 shadow flex items-center justify-center hover:bg-white"><ChevronRight className="w-5 h-5" /></button>
+            </>
+          )}
+        </div>
+        {images.length > 1 && (
+          <div className="flex gap-2 mt-2 overflow-x-auto no-scrollbar">
+            {images.map((im, i) => (
+              <button key={i} onClick={() => setIdx(i)} className={`w-16 h-16 rounded-lg overflow-hidden border-2 shrink-0 ${i === idx ? "border-primary" : "border-border"}`}>
+                <img src={im} alt="" className="w-full h-full object-cover" />
+              </button>
+            ))}
+          </div>
+        )}
+        {work.description && <p className="text-sm text-muted-foreground mt-2">{work.description}</p>}
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -166,4 +210,17 @@ function ReviewDialog({ technicianId, onDone }) {
       </DialogContent>
     </Dialog>
   );
+}
+
+const AVAILABILITY_LABELS = {
+  available: { label: "Disponib", color: "bg-emerald-100 text-emerald-700" },
+  busy: { label: "Okipe", color: "bg-amber-100 text-amber-700" },
+  offline: { label: "Offline", color: "bg-muted text-muted-foreground" },
+  by_appointment: { label: "Sou Randevou", color: "bg-blue-100 text-blue-700" },
+};
+
+function AvailabilityBadge({ status }) {
+  const info = AVAILABILITY_LABELS[status];
+  if (!info) return null;
+  return <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${info.color}`}>{info.label}</span>;
 }
