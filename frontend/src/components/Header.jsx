@@ -86,6 +86,7 @@ export default function Header() {
                       <DropdownMenuItem onClick={() => nav("/technician-dashboard")} data-testid="menu-tech-dashboard"><LayoutDashboard className="w-4 h-4 mr-2" />Tablo Teknisyen</DropdownMenuItem>
                     )}
                     <DropdownMenuItem onClick={() => nav("/favorites")} data-testid="menu-favorites"><Heart className="w-4 h-4 mr-2" />{t("favorites")}</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => nav("/alerts")} data-testid="menu-alerts"><Bell className="w-4 h-4 mr-2" />Alèt Mwen</DropdownMenuItem>
                     <DropdownMenuItem onClick={() => nav("/profile")} data-testid="menu-profile"><User className="w-4 h-4 mr-2" />{t("myAccount")}</DropdownMenuItem>
                     {user.role === "admin" && (
                       <DropdownMenuItem onClick={() => nav("/admin")} data-testid="menu-admin"><Shield className="w-4 h-4 mr-2" />{t("admin")}</DropdownMenuItem>
