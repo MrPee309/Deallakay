@@ -15,6 +15,7 @@ export default function Technicians() {
   const [params, setParams] = useSearchParams();
   const [specialties, setSpecialties] = useState([]);
   const [data, setData] = useState({ technicians: [], total: 0, pages: 1 });
+  const [feed, setFeed] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const get = (k) => params.get(k) || "";
@@ -26,6 +27,7 @@ export default function Technicians() {
 
   useEffect(() => {
     api.get("/technician-specialties").then(({ data }) => setSpecialties(data)).catch(() => {});
+    api.get("/technicians/work-feed").then(({ data }) => setFeed(data)).catch(() => {});
   }, []);
 
   const load = useCallback(async () => {
@@ -51,6 +53,23 @@ export default function Technicians() {
           <Link to="/become-technician"><Button className="bg-primary font-semibold" data-testid="become-technician-cta">Vin Teknisyen</Button></Link>
         )}
       </div>
+
+      {feed.length > 0 && (
+        <div className="mb-8">
+          <h2 className="font-display text-lg font-bold mb-3">Katalòg Travay Teknisyen yo</h2>
+          <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-2">
+            {feed.map((w) => (
+              <Link key={w.id} to={`/technician/${w.technician_username}`} data-testid={`catalog-photo-${w.id}`}
+                className="group relative aspect-square rounded-lg overflow-hidden bg-muted">
+                <img src={w.image} alt={w.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-2">
+                  <span className="text-white text-[10px] font-semibold truncate">@{w.technician_username}</span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="flex flex-col sm:flex-row gap-3 mb-6">
         <Select value={get("specialty") || "all"} onValueChange={(v) => setParam("specialty", v === "all" ? "" : v)}>
