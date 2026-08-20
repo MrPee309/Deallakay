@@ -202,7 +202,7 @@ function ReviewDialog({ technicianId, onDone }) {
         <DialogHeader><DialogTitle>Evalye teknisyen an</DialogTitle></DialogHeader>
         <div className="flex gap-1 justify-center py-2">
           {Array.from({ length: 5 }).map((_, i) => (
-            <button key={i} type="button" onClick={() => { toast.info(`Debug: nòt ${i + 1} chwazi`); setRating(i + 1); }} data-testid={`tech-star-${i + 1}`} className="p-1"><Star className={`w-8 h-8 pointer-events-none ${i < rating ? "fill-secondary text-secondary" : "text-muted"}`} /></button>
+            <button key={i} type="button" onClick={() => setRating(i + 1)} data-testid={`tech-star-${i + 1}`} className="p-1"><Star className={`w-8 h-8 pointer-events-none ${i < rating ? "fill-secondary text-secondary" : "text-muted"}`} /></button>
           ))}
         </div>
         <p className="text-center text-xs text-muted-foreground -mt-2">Debug: rating aktyèl = "{rating}"</p>
