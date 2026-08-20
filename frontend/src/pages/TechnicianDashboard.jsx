@@ -88,7 +88,7 @@ export default function TechnicianDashboard() {
         </TabsContent>
 
         <TabsContent value="settings">
-          <TechSettingsTab profile={profile} onSaved={() => { load(); fetchMe(); }} />
+          <TechSettingsTab profile={profile} onSaved={() => { load(); fetchMe(); setTab("overview"); }} />
         </TabsContent>
       </Tabs>
     </div>
