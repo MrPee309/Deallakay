@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { MapPin, Clock, Loader2, ImagePlus, X, Lock, ShieldCheck, Wrench, Store } from "lucide-react";
+import { MapPin, Clock, Loader2, ImagePlus, X, Lock, ShieldCheck, Wrench, Store, Check } from "lucide-react";
 import api, { apiError } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { useApp } from "@/contexts/AppContext";
@@ -29,15 +29,24 @@ export default function RequestDetail() {
   useEffect(() => { load(); }, [id]); // eslint-disable-line
 
   if (loading || !d) return <FullLoader />;
-  const { request: r, offers, is_owner } = d;
+  const { request: r, offers, is_owner, my_offer } = d;
   const canOffer = user?.id && !is_owner && (user.is_seller || user.is_technician) && r.status === "open";
-  const alreadyOffered = offers.some((o) => o.seller_id === user?.id);
+  const alreadyOffered = !!my_offer;
 
   const closeReq = async () => {
     try { await api.put(`/requests/${id}/close`); toast.success("Demann fèmen."); load(); } catch (e) { toast.error(apiError(e)); }
   };
   const delReq = async () => {
     try { await api.delete(`/requests/${id}`); toast.success("Efase."); nav("/requests"); } catch (e) { toast.error(apiError(e)); }
+  };
+  const proposeAccept = async (oid) => {
+    try { await api.put(`/requests/${id}/offers/${oid}/propose-accept`); toast.success("Pwopozisyon voye. Tann konfimasyon."); load(); } catch (e) { toast.error(apiError(e)); }
+  };
+  const confirmOffer = async () => {
+    try { await api.put(`/requests/${id}/offers/${my_offer.id}/confirm`); toast.success("Konfime! Antant lan fini."); load(); } catch (e) { toast.error(apiError(e)); }
+  };
+  const declineOffer = async () => {
+    try { await api.put(`/requests/${id}/offers/${my_offer.id}/decline`); toast.info("Ou refize pwopozisyon an."); load(); } catch (e) { toast.error(apiError(e)); }
   };
 
   return (
@@ -94,7 +103,18 @@ export default function RequestDetail() {
                       {o.images.map((im, i) => <img key={i} src={im} alt="" className="w-16 h-16 rounded-lg object-cover" />)}
                     </div>
                   )}
-                  <p className="text-xs text-muted-foreground mt-2">{timeAgo(o.created_at, lang)}</p>
+                  <div className="flex items-center justify-between mt-2">
+                    <p className="text-xs text-muted-foreground">{timeAgo(o.created_at, lang)}</p>
+                    {r.status === "fulfilled" && r.accepted_offer_id === o.id && (
+                      <span className="text-xs bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-full font-semibold flex items-center gap-1"><Check className="w-3 h-3" />Konfime</span>
+                    )}
+                    {r.status === "open" && o.owner_accepted && (
+                      <span className="text-xs bg-secondary/20 text-secondary-foreground px-2.5 py-1 rounded-full font-semibold">K ap tann konfimasyon @{o.seller_username}</span>
+                    )}
+                    {r.status === "open" && !o.owner_accepted && (
+                      <Button size="sm" onClick={() => proposeAccept(o.id)} className="bg-emerald-500 hover:bg-emerald-600 h-8" data-testid={`accept-offer-${o.id}`}>Pwopoze Aksepte</Button>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
@@ -103,8 +123,29 @@ export default function RequestDetail() {
       ) : (
         <div className="mt-6">
           {canOffer && !alreadyOffered && <OfferForm requestId={id} onDone={load} />}
-          {alreadyOffered && <p className="text-center py-6 text-muted-foreground text-sm">Ou deja fè yon òf sou demann sa a.</p>}
-          {!canOffer && r.status === "open" && !is_owner && (
+          {alreadyOffered && (
+            <div className="bg-card border border-border rounded-xl p-5">
+              <div className="flex items-center justify-between">
+                <h3 className="font-display font-bold">Òf ou</h3>
+                <span className="font-display font-bold text-primary">{formatPrice(my_offer.price)}</span>
+              </div>
+              {my_offer.message && <p className="text-sm text-muted-foreground mt-1">{my_offer.message}</p>}
+              {r.status === "fulfilled" && r.accepted_offer_id === my_offer.id ? (
+                <p className="text-sm font-semibold text-emerald-600 mt-3 flex items-center gap-1"><Check className="w-4 h-4" />Antant lan konfime — fèlisitasyon!</p>
+              ) : my_offer.owner_accepted ? (
+                <div className="mt-3">
+                  <p className="text-sm mb-2">Pwopriyetè demann lan vle aksepte òf ou. Konfime si nou toude dakò.</p>
+                  <div className="flex gap-2">
+                    <Button onClick={confirmOffer} className="bg-emerald-500 hover:bg-emerald-600" data-testid="confirm-offer-btn">Konfime</Button>
+                    <Button variant="outline" onClick={declineOffer} className="text-destructive" data-testid="decline-offer-btn">Refize</Button>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground mt-3">Ap tann pwopriyetè demann lan reponn.</p>
+              )}
+            </div>
+          )}
+          {!canOffer && !alreadyOffered && r.status === "open" && !is_owner && (
             <div className="flex items-center gap-2 justify-center py-6 text-muted-foreground text-sm">
               <Lock className="w-4 h-4" />Ou dwe yon vandè oswa teknisyen pou fè yon òf.
             </div>
