@@ -13,6 +13,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+const AVAILABILITY_OPTIONS = [
+  { value: "available", label: "Disponib" },
+  { value: "busy", label: "Okipe" },
+  { value: "offline", label: "Offline" },
+  { value: "by_appointment", label: "Sou Randevou" },
+];
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
@@ -133,7 +141,8 @@ function TechSettingsTab({ profile, onSaved }) {
   const [f, setF] = useState({
     bio: profile.bio || "", years_experience: profile.years_experience ?? "",
     whatsapp_enabled: profile.whatsapp_enabled ?? true, whatsapp_number: profile.whatsapp_number || "",
-    show_phone: profile.show_phone ?? true,
+    show_phone: profile.show_phone ?? true, languages: (profile.languages || []).join(", "),
+    availability: profile.availability || "available",
   });
   const [saving, setSaving] = useState(false);
   const set = (k, v) => setF((s) => ({ ...s, [k]: v }));
@@ -151,6 +160,7 @@ function TechSettingsTab({ profile, onSaved }) {
       await api.put("/technician/settings", {
         ...f, specialties, service_departments: departments,
         years_experience: f.years_experience === "" ? null : Number(f.years_experience),
+        languages: f.languages.split(",").map((l) => l.trim()).filter(Boolean),
       });
       toast.success("Anrejistre!"); onSaved && onSaved();
     } catch (e) { toast.error(apiError(e)); } finally { setSaving(false); }
@@ -181,6 +191,16 @@ function TechSettingsTab({ profile, onSaved }) {
         </div>
       </div>
       <div><Label>Bio</Label><Textarea value={f.bio} onChange={(e) => set("bio", e.target.value)} data-testid="tech-setting-bio" className="mt-1.5" /></div>
+      <div className="grid grid-cols-2 gap-3">
+        <div><Label>Lang</Label><Input value={f.languages} onChange={(e) => set("languages", e.target.value)} data-testid="tech-setting-languages" className="mt-1.5 h-11" placeholder="Kreyòl, Fransè" /></div>
+        <div>
+          <Label>Disponiblite</Label>
+          <Select value={f.availability} onValueChange={(v) => set("availability", v)}>
+            <SelectTrigger className="mt-1.5 h-11" data-testid="tech-setting-availability"><SelectValue /></SelectTrigger>
+            <SelectContent>{AVAILABILITY_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
+          </Select>
+        </div>
+      </div>
       <div><Label>Ane eksperyans</Label><Input type="number" min="0" value={f.years_experience} onChange={(e) => set("years_experience", e.target.value)} data-testid="tech-setting-experience" className="mt-1.5 h-11" /></div>
       <div className="flex items-center justify-between"><Label>Aktive WhatsApp</Label><Switch checked={f.whatsapp_enabled} onCheckedChange={(v) => set("whatsapp_enabled", v)} data-testid="tech-setting-whatsapp-toggle" /></div>
       {f.whatsapp_enabled && <div><Label>Nimewo WhatsApp</Label><Input value={f.whatsapp_number} onChange={(e) => set("whatsapp_number", e.target.value)} data-testid="tech-setting-whatsapp-number" className="mt-1.5 h-11" placeholder="+509..." /></div>}
