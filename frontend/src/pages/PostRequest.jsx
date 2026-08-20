@@ -33,6 +33,7 @@ export default function PostRequest() {
 
   const submit = async () => {
     if (!f.title.trim()) return toast.error("Antre yon tit.");
+    if (!f.category) return toast.error("Chwazi yon kategori.");
     if (!f.department || !f.city) return toast.error("Chwazi lokasyon ou.");
     setSaving(true);
     try {
@@ -59,11 +60,12 @@ export default function PostRequest() {
           <Textarea value={f.description} onChange={(e) => set("description", e.target.value)} data-testid="request-description" className="mt-1.5" rows={4} placeholder="Bay plis detay: koulè, kondisyon, poukisa ou bezwen l..." />
         </div>
         <div>
-          <Label>Kategori (opsyonèl)</Label>
+          <Label>Kategori<span className="text-red-500 ml-0.5">*</span></Label>
           <Select value={f.category} onValueChange={(v) => set("category", v)}>
             <SelectTrigger className="mt-1.5 h-11" data-testid="request-category"><SelectValue placeholder="Chwazi" /></SelectTrigger>
             <SelectContent>{categories.map((c) => <SelectItem key={c.id} value={c.type}>{c.name_ht}</SelectItem>)}</SelectContent>
           </Select>
+          <p className="text-xs text-muted-foreground mt-1.5">Sa detèmine ki vandè/teknisyen ki resevwa alèt sou demann ou a.</p>
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
