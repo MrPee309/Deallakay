@@ -21,6 +21,7 @@ import BecomeTechnicianPage from "@/pages/BecomeTechnicianPage";
 import Requests from "@/pages/Requests";
 import RequestDetail from "@/pages/RequestDetail";
 import PostRequest from "@/pages/PostRequest";
+import MyAlerts from "@/pages/MyAlerts";
 import TechnicianDashboard from "@/pages/TechnicianDashboard";
 import Messages from "@/pages/Messages";
 import Favorites from "@/pages/Favorites";
@@ -55,6 +56,7 @@ function App() {
               <Route path="/requests" element={<Requests />} />
               <Route path="/requests/:id" element={<ProtectedRoute><RequestDetail /></ProtectedRoute>} />
               <Route path="/post-request" element={<ProtectedRoute><PostRequest /></ProtectedRoute>} />
+              <Route path="/alerts" element={<ProtectedRoute><MyAlerts /></ProtectedRoute>} />
               <Route path="/how-it-works" element={<HowItWorks />} />
               <Route path="/safety" element={<Safety />} />
 
