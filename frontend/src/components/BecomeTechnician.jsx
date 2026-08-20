@@ -8,6 +8,15 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+const AVAILABILITY_OPTIONS = [
+  { value: "available", label: "Disponib" },
+  { value: "busy", label: "Okipe" },
+  { value: "offline", label: "Offline" },
+  { value: "by_appointment", label: "Sou Randevou" },
+];
 
 const TECHNICIAN_RULES = [
   "Bay estimasyon reyalis pou pri ak dire reparasyon.",
@@ -23,6 +32,8 @@ export default function BecomeTechnician({ onDone }) {
   const [allSpecialties, setAllSpecialties] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [bio, setBio] = useState("");
+  const [languages, setLanguages] = useState("");
+  const [availability, setAvailability] = useState("available");
   const [terms, setTerms] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -41,6 +52,8 @@ export default function BecomeTechnician({ onDone }) {
     try {
       await api.post("/technician/become", {
         accept_technician_terms: terms, specialties, service_departments: departments, bio,
+        languages: languages.split(",").map((l) => l.trim()).filter(Boolean),
+        availability,
       });
       await fetchMe();
       toast.success("Ou se yon teknisyen kounye a!");
@@ -89,6 +102,20 @@ export default function BecomeTechnician({ onDone }) {
         <div className="mt-5">
           <Label>Ti deskripsyon (opsyonèl)</Label>
           <Textarea value={bio} onChange={(e) => setBio(e.target.value)} className="mt-1.5" rows={3} placeholder="Dekri eksperyans ou..." />
+        </div>
+
+        <div className="mt-5 grid grid-cols-2 gap-3">
+          <div>
+            <Label>Lang (opsyonèl)</Label>
+            <Input value={languages} onChange={(e) => setLanguages(e.target.value)} className="mt-1.5 h-11" placeholder="Kreyòl, Fransè" data-testid="technician-languages" />
+          </div>
+          <div>
+            <Label>Disponiblite</Label>
+            <Select value={availability} onValueChange={setAvailability}>
+              <SelectTrigger className="mt-1.5 h-11" data-testid="technician-availability"><SelectValue /></SelectTrigger>
+              <SelectContent>{AVAILABILITY_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
         </div>
 
         <div className="mt-6 bg-muted/50 rounded-xl p-4">
