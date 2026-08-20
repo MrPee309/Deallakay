@@ -187,7 +187,7 @@ function ReviewDialog({ technicianId, onDone }) {
   const [loading, setLoading] = useState(false);
 
   const submit = async () => {
-    if (!rating) return toast.error(`Chwazi yon nòt. (Debug: rating="${rating}")`);
+    if (!rating) return toast.error("Chwazi yon nòt.");
     setLoading(true);
     try {
       await api.post("/reviews", { seller_id: technicianId, rating, comment, target_type: "technician" });
@@ -205,7 +205,6 @@ function ReviewDialog({ technicianId, onDone }) {
             <button key={i} type="button" onClick={() => setRating(i + 1)} data-testid={`tech-star-${i + 1}`} className="p-1"><Star className={`w-8 h-8 pointer-events-none ${i < rating ? "fill-secondary text-secondary" : "text-muted"}`} /></button>
           ))}
         </div>
-        <p className="text-center text-xs text-muted-foreground -mt-2">Debug: rating aktyèl = "{rating}"</p>
         <Textarea placeholder="Kòmantè w (opsyonèl)" value={comment} onChange={(e) => setComment(e.target.value)} data-testid="technician-review-comment" />
         <Button onClick={submit} disabled={loading} className="bg-primary" data-testid="submit-technician-review-btn">{loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Voye avi"}</Button>
       </DialogContent>
