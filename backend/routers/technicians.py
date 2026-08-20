@@ -160,6 +160,24 @@ async def list_technicians(
     return {"technicians": results, "total": total, "page": page, "limit": limit, "pages": (total + limit - 1) // limit}
 
 
+@router.get("/technicians/work-feed")
+async def technicians_work_feed(limit: int = 40):
+    """Public photo catalog aggregating recent work posts across ALL technicians
+    (only items that actually have a photo), so browsing /technicians feels like
+    flipping through a catalog rather than a plain profile list."""
+    items = await db.technician_work.find({"images.0": {"$exists": True}}, NO_ID).sort("created_at", -1).limit(limit).to_list(limit)
+    results = []
+    for w in items:
+        u = await db.users.find_one({"id": w["technician_user_id"]}, NO_ID)
+        if not u:
+            continue
+        results.append({
+            "id": w["id"], "title": w["title"], "image": w["images"][0],
+            "technician_username": u["username"], "technician_name": u["full_name"],
+        })
+    return results
+
+
 @router.get("/technicians/{username}")
 async def public_technician(username: str):
     u = await db.users.find_one({"username": username.lower()}, NO_ID)
