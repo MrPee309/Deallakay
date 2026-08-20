@@ -124,6 +124,9 @@ export default function Header() {
                   <Link to="/technicians" onClick={() => setMenuOpen(false)} data-testid="mobile-nav-technicians" className="text-sm font-medium px-3 py-2.5 rounded-lg hover:bg-muted flex items-center gap-2 text-muted-foreground">
                     <Icons.Wrench className="w-4 h-4" /> Teknisyen
                   </Link>
+                  <Link to="/requests" onClick={() => setMenuOpen(false)} data-testid="mobile-nav-requests" className="text-sm font-medium px-3 py-2.5 rounded-lg hover:bg-muted flex items-center gap-2 text-muted-foreground">
+                    <Icons.MessageSquareText className="w-4 h-4" /> Demann
+                  </Link>
                 </div>
                 {!(user && user.id) && (
                   <div className="mt-auto pt-4 border-t border-border flex flex-col gap-2">
@@ -151,6 +154,9 @@ export default function Header() {
           })}
           <Link to="/technicians" data-testid="nav-technicians" className="text-sm font-medium px-3 py-1.5 rounded-full hover:bg-muted whitespace-nowrap flex items-center gap-1.5 text-muted-foreground hover:text-foreground">
             <Icons.Wrench className="w-4 h-4" /> Teknisyen
+          </Link>
+          <Link to="/requests" data-testid="nav-requests" className="text-sm font-medium px-3 py-1.5 rounded-full hover:bg-muted whitespace-nowrap flex items-center gap-1.5 text-muted-foreground hover:text-foreground">
+            <Icons.MessageSquareText className="w-4 h-4" /> Demann
           </Link>
         </div>
       </div>
