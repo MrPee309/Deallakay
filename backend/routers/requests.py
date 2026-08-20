@@ -36,6 +36,8 @@ class OfferIn(BaseModel):
 async def create_request(data: PartRequestIn, user: dict = Depends(get_current_user)):
     if not data.title.strip():
         raise HTTPException(status_code=400, detail="Antre yon tit.")
+    if not data.category:
+        raise HTTPException(status_code=400, detail="Chwazi yon kategori.")
     if not data.department.strip() or not data.city.strip():
         raise HTTPException(status_code=400, detail="Chwazi depatman ak vil ou.")
     security.validate_images(data.images)
@@ -54,6 +56,24 @@ async def create_request(data: PartRequestIn, user: dict = Depends(get_current_u
         "created_at": now_iso(),
     }
     await db.part_requests.insert_one(dict(req))
+    # Target the alert: if the requester picked a category, notify sellers who
+    # have actually listed products in that category (i.e. relevant to what's
+    # being asked for) plus every technician (a technician can often help
+    # regardless of category). With no category chosen, fall back to alerting
+    # every seller/technician so the request still gets seen.
+    if data.category:
+        relevant_seller_ids = await db.products.distinct("seller_id", {"category": data.category})
+        notify_targets = await db.users.find(
+            {"id": {"$ne": user["id"]}, "$or": [{"id": {"$in": relevant_seller_ids}}, {"is_technician": True}]},
+            {"id": 1},
+        ).to_list(5000)
+    else:
+        notify_targets = await db.users.find(
+            {"id": {"$ne": user["id"]}, "$or": [{"is_seller": True}, {"is_technician": True}]},
+            {"id": 1},
+        ).to_list(5000)
+    for t in notify_targets:
+        await create_notification(t["id"], "new_request", f"Nouvo demann: '{req['title']}'", f"/requests/{req['id']}")
     return {k: v for k, v in req.items() if k != "_id"}
 
 
