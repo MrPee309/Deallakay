@@ -24,6 +24,8 @@ SPECIALTIES = [
     "Enstalasyon Lojisyèl", "Reparasyon Konsòl Jwèt", "Lòt Sèvis Teknik",
 ]
 
+AVAILABILITY_STATUSES = ["available", "busy", "offline", "by_appointment"]
+
 
 class BecomeTechnicianIn(BaseModel):
     accept_technician_terms: bool
@@ -31,6 +33,8 @@ class BecomeTechnicianIn(BaseModel):
     service_departments: List[str] = []
     bio: str = ""
     years_experience: Optional[int] = None
+    languages: List[str] = []
+    availability: str = "available"
 
 
 class TechnicianSettingsIn(BaseModel):
@@ -38,6 +42,8 @@ class TechnicianSettingsIn(BaseModel):
     service_departments: Optional[List[str]] = None
     bio: Optional[str] = None
     years_experience: Optional[int] = None
+    languages: Optional[List[str]] = None
+    availability: Optional[str] = None
     whatsapp_enabled: Optional[bool] = None
     whatsapp_number: Optional[str] = None
     show_phone: Optional[bool] = None
@@ -64,6 +70,8 @@ async def become_technician(data: BecomeTechnicianIn, user: dict = Depends(get_c
     bad_specialties = [s for s in data.specialties if s not in SPECIALTIES]
     if bad_specialties:
         raise HTTPException(status_code=400, detail=f"Espesyalite pa valab: {', '.join(bad_specialties)}")
+    if data.availability not in AVAILABILITY_STATUSES:
+        raise HTTPException(status_code=400, detail="Estati disponiblite pa valab.")
     existing = await db.technician_profiles.find_one({"user_id": user["id"]})
     if not existing:
         await db.technician_profiles.insert_one({
@@ -75,6 +83,8 @@ async def become_technician(data: BecomeTechnicianIn, user: dict = Depends(get_c
             "service_departments": data.service_departments,
             "bio": data.bio,
             "years_experience": data.years_experience,
+            "languages": data.languages,
+            "availability": data.availability,
             "whatsapp_enabled": True,
             "whatsapp_number": user.get("phone", ""),
             "show_phone": True,
@@ -103,6 +113,8 @@ async def update_technician_settings(data: TechnicianSettingsIn, user: dict = De
         bad = [s for s in data.specialties if s not in SPECIALTIES]
         if bad:
             raise HTTPException(status_code=400, detail=f"Espesyalite pa valab: {', '.join(bad)}")
+    if data.availability is not None and data.availability not in AVAILABILITY_STATUSES:
+        raise HTTPException(status_code=400, detail="Estati disponiblite pa valab.")
     updates = {k: v for k, v in data.model_dump().items() if v is not None and k != "avatar"}
     if updates:
         await db.technician_profiles.update_one({"user_id": user["id"]}, {"$set": updates})
