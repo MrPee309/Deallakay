@@ -47,6 +47,8 @@ export default function SupplierProfile() {
             <div className="flex items-center gap-2 flex-wrap">
               <h1 className="font-display text-2xl font-bold">{s.company_name}</h1>
               {s.verified && <span className="text-xs bg-primary/10 text-primary font-semibold px-2.5 py-1 rounded-full flex items-center gap-1"><ShieldCheck className="w-3.5 h-3.5" />Founisè Verifye</span>}
+              {s.status === "pending" && <span className="text-xs bg-amber-100 text-amber-700 font-semibold px-2.5 py-1 rounded-full">An Atant Apwobasyon</span>}
+              {s.status === "rejected" && <span className="text-xs bg-destructive/10 text-destructive font-semibold px-2.5 py-1 rounded-full">Rejte</span>}
               {s.featured && <span className="text-xs bg-secondary/20 text-secondary-foreground font-semibold px-2.5 py-1 rounded-full">Featured</span>}
             </div>
             {s.short_description && <p className="text-sm mt-2">{s.short_description}</p>}
