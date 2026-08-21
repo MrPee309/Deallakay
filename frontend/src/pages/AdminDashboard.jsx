@@ -47,6 +47,7 @@ export default function AdminDashboard() {
           <TabsTrigger value="reports" data-testid="admin-tab-reports">Rapò</TabsTrigger>
           <TabsTrigger value="verifications" data-testid="admin-tab-verif">Verifikasyon Vandè</TabsTrigger>
           <TabsTrigger value="tech-verifications" data-testid="admin-tab-tech-verif">Verifikasyon Teknisyen</TabsTrigger>
+          <TabsTrigger value="supplier-verifications" data-testid="admin-tab-supplier-verif">Verifikasyon Founisè</TabsTrigger>
           <TabsTrigger value="categories" data-testid="admin-tab-cats">Kategori</TabsTrigger>
           <TabsTrigger value="settings" data-testid="admin-tab-settings">Paramèt</TabsTrigger>
         </TabsList>
@@ -55,6 +56,7 @@ export default function AdminDashboard() {
         <TabsContent value="reports"><AdminReports /></TabsContent>
         <TabsContent value="verifications"><AdminVerifications /></TabsContent>
         <TabsContent value="tech-verifications"><AdminTechnicianVerifications /></TabsContent>
+        <TabsContent value="supplier-verifications"><AdminSupplierVerifications /></TabsContent>
         <TabsContent value="categories"><AdminCategories /></TabsContent>
         <TabsContent value="settings"><AdminSettings /></TabsContent>
       </Tabs>
@@ -198,6 +200,28 @@ function AdminTechnicianVerifications() {
           {v.status === "pending" && <>
             <Button size="sm" className="bg-emerald-500" onClick={() => act(v.id, "approve")} data-testid={`tech-verif-approve-${v.id}`}><Check className="w-4 h-4" /></Button>
             <Button size="sm" variant="outline" className="text-destructive" onClick={() => act(v.id, "reject")} data-testid={`tech-verif-reject-${v.id}`}><X className="w-4 h-4" /></Button>
+          </>}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function AdminSupplierVerifications() {
+  const [items, setItems] = useState([]);
+  const load = async () => { const { data } = await api.get("/admin/supplier-verifications"); setItems(data); };
+  useEffect(() => { load(); }, []);
+  const act = async (id, decision) => { await api.put(`/admin/supplier-verifications/${id}/${decision}`); toast.success("Fèt"); load(); };
+  return (
+    <div className="space-y-2">
+      {items.length === 0 && <div className="text-center py-10 text-muted-foreground">Pa gen demann.</div>}
+      {items.map((v) => (
+        <div key={v.id} className="bg-card border border-border rounded-xl p-3 flex items-center gap-3" data-testid={`supplier-verif-${v.id}`}>
+          <ShieldCheck className="w-5 h-5 text-primary shrink-0" />
+          <div className="flex-1"><div className="font-semibold text-sm">{v.company_name}</div><div className="text-xs text-muted-foreground">{v.status} · {timeAgo(v.created_at)}</div></div>
+          {v.status === "pending" && <>
+            <Button size="sm" className="bg-emerald-500" onClick={() => act(v.id, "approve")} data-testid={`supplier-verif-approve-${v.id}`}><Check className="w-4 h-4" /></Button>
+            <Button size="sm" variant="outline" className="text-destructive" onClick={() => act(v.id, "reject")} data-testid={`supplier-verif-reject-${v.id}`}><X className="w-4 h-4" /></Button>
           </>}
         </div>
       ))}
