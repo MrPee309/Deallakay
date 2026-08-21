@@ -49,10 +49,11 @@ class SupplierIn(BaseModel):
     ships_to_haiti: bool = False
     ships_internationally: bool = False
     contact_email: str = ""
-    contact_phone: str = ""
+    contact_phone: str
     contact_whatsapp: str = ""
     external_contact_link: str = ""
     show_contact_publicly: bool = False  # supplier controls visibility; default off per privacy rules
+    accept_supplier_terms: bool = False
 
 
 class SupplierProductIn(BaseModel):
@@ -142,6 +143,14 @@ async def create_supplier(data: SupplierIn, user: dict = Depends(get_current_use
         raise HTTPException(status_code=400, detail="Antre non konpayi a.")
     if not data.country.strip():
         raise HTTPException(status_code=400, detail="Antre peyi a.")
+    if data.country.strip().lower() in ("ayiti", "haiti"):
+        raise HTTPException(status_code=400, detail="Founisè yo dwe lòtbò — pa Ayiti.")
+    if not data.contact_phone.strip():
+        raise HTTPException(status_code=400, detail="Nimewo telefòn entènasyonal obligatwa.")
+    if not data.contact_phone.strip().startswith("+"):
+        raise HTTPException(status_code=400, detail="Antre nimewo a ak kòd peyi a (egzanp +1...).")
+    if not data.accept_supplier_terms:
+        raise HTTPException(status_code=400, detail="Ou dwe aksepte Kondisyon Founisè yo.")
     bad_types = [t for t in data.supplier_types if t not in SUPPLIER_TYPES]
     if bad_types:
         raise HTTPException(status_code=400, detail=f"Tip founisè pa valab: {', '.join(bad_types)}")
@@ -330,6 +339,19 @@ async def delete_shipping_service(sid: str, svc_id: str, user: dict = Depends(ge
 async def create_inquiry(sid: str, data: SupplierInquiryIn, user: dict = Depends(get_current_user)):
     if not (user.get("is_seller") or user.get("is_technician")):
         raise HTTPException(status_code=403, detail="Ou dwe vandè oswa teknisyen pou kontakte yon founisè.")
+    # Only VERIFIED sellers/technicians may contact international suppliers —
+    # unverified accounts can still browse a supplier's products/profile, but
+    # the "contact" action itself is gated to protect suppliers from fraud.
+    is_verified_seller = False
+    is_verified_tech = False
+    if user.get("is_seller"):
+        sp = await db.seller_profiles.find_one({"user_id": user["id"]}, NO_ID)
+        is_verified_seller = bool(sp and sp.get("seller_verified"))
+    if user.get("is_technician"):
+        tp = await db.technician_profiles.find_one({"user_id": user["id"]}, NO_ID)
+        is_verified_tech = bool(tp and tp.get("technician_verified"))
+    if not (is_verified_seller or is_verified_tech):
+        raise HTTPException(status_code=403, detail="Ou dwe yon vandè oswa teknisyen VERIFYE pou kontakte yon founisè.")
     s = await db.suppliers.find_one({"id": sid})
     if not s or s.get("status") != "active":
         raise HTTPException(status_code=404, detail="Founisè pa jwenn.")
