@@ -22,6 +22,9 @@ import Requests from "@/pages/Requests";
 import RequestDetail from "@/pages/RequestDetail";
 import PostRequest from "@/pages/PostRequest";
 import MyAlerts from "@/pages/MyAlerts";
+import Suppliers from "@/pages/Suppliers";
+import SupplierProfile from "@/pages/SupplierProfile";
+import BecomeSupplier from "@/pages/BecomeSupplier";
 import TechnicianDashboard from "@/pages/TechnicianDashboard";
 import Messages from "@/pages/Messages";
 import Favorites from "@/pages/Favorites";
@@ -57,6 +60,9 @@ function App() {
               <Route path="/requests/:id" element={<ProtectedRoute><RequestDetail /></ProtectedRoute>} />
               <Route path="/post-request" element={<ProtectedRoute><PostRequest /></ProtectedRoute>} />
               <Route path="/alerts" element={<ProtectedRoute><MyAlerts /></ProtectedRoute>} />
+              <Route path="/suppliers" element={<Suppliers />} />
+              <Route path="/suppliers/:id" element={<SupplierProfile />} />
+              <Route path="/become-supplier" element={<ProtectedRoute><BecomeSupplier /></ProtectedRoute>} />
               <Route path="/how-it-works" element={<HowItWorks />} />
               <Route path="/safety" element={<Safety />} />
 
