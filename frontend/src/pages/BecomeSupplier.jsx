@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Building2, Loader2 } from "lucide-react";
@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const SUPPLIER_TYPES = [
   "Manufacturer", "Distributor", "Wholesaler", "Parts Supplier", "Electronics Supplier",
@@ -22,8 +23,17 @@ const CATEGORIES = [
   { value: "tools", label: "Ekipman Teknoloji" },
 ];
 
+const COUNTRY_PHONE_DIGITS = {
+  "United States": [10, 10], "Canada": [10, 10], "Dominican Republic": [10, 10],
+  "China": [11, 11], "Mexico": [10, 10], "Panama": [7, 8], "Jamaica": [10, 10],
+  "Brazil": [10, 11], "United Kingdom": [10, 10], "France": [9, 9], "Germany": [10, 11],
+  "Spain": [9, 9], "South Korea": [9, 10], "Japan": [9, 10], "India": [10, 10],
+  "United Arab Emirates": [9, 9],
+};
+
 export default function BecomeSupplier() {
   const nav = useNavigate();
+  const [countries, setCountries] = useState([]);
   const [f, setF] = useState({
     company_name: "", short_description: "", full_description: "", country: "", state_province: "", city: "",
     website: "", supplier_types: [], categories: [], brands: "", years_in_business: "",
@@ -34,6 +44,11 @@ export default function BecomeSupplier() {
   const set = (k, v) => setF((s) => ({ ...s, [k]: v }));
   const toggleType = (t) => setF((s) => ({ ...s, supplier_types: s.supplier_types.includes(t) ? s.supplier_types.filter((x) => x !== t) : [...s.supplier_types, t] }));
   const toggleCat = (c) => setF((s) => ({ ...s, categories: s.categories.includes(c) ? s.categories.filter((x) => x !== c) : [...s.categories, c] }));
+  const selectedCountry = countries.find((c) => c.name === f.country);
+
+  useEffect(() => {
+    api.get("/supplier-countries").then(({ data }) => setCountries(data)).catch(() => {});
+  }, []);
 
   const submit = async () => {
     if (!f.company_name.trim()) return toast.error("Antre non konpayi a.");
@@ -41,6 +56,14 @@ export default function BecomeSupplier() {
     if (f.country.trim().toLowerCase() === "ayiti" || f.country.trim().toLowerCase() === "haiti") return toast.error("Founisè yo dwe lòtbò — pa Ayiti.");
     if (!f.contact_phone.trim()) return toast.error("Nimewo telefòn entènasyonal obligatwa.");
     if (!f.contact_phone.trim().startsWith("+")) return toast.error("Antre nimewo a ak kòd peyi a (egzanp +1...).");
+    if (selectedCountry?.code && !f.contact_phone.trim().startsWith(selectedCountry.code)) return toast.error(`Nimewo a dwe kòmanse ak ${selectedCountry.code}.`);
+    if (selectedCountry?.code) {
+      const digitsAfterCode = f.contact_phone.trim().slice(selectedCountry.code.length).replace(/\D/g, "");
+      const [lo, hi] = COUNTRY_PHONE_DIGITS[selectedCountry.name] || [7, 15];
+      if (digitsAfterCode.length < lo || digitsAfterCode.length > hi) {
+        return toast.error(`Nimewo pa sanble valab pou ${selectedCountry.name} — apre ${selectedCountry.code}, li dwe gen ${lo === hi ? lo : `${lo}-${hi}`} chif.`);
+      }
+    }
     if (!f.accept_supplier_terms) return toast.error("Ou dwe aksepte Kondisyon Founisè yo.");
     setSaving(true);
     try {
@@ -48,7 +71,7 @@ export default function BecomeSupplier() {
         ...f, brands: f.brands.split(",").map((b) => b.trim()).filter(Boolean),
         years_in_business: f.years_in_business ? Number(f.years_in_business) : null,
       });
-      toast.success("Founisè ajoute!");
+      toast.success("Demann ou voye! Li an atant apwobasyon admin anvan li vin piblik.");
       nav(`/suppliers/${data.id}`);
     } catch (e) { toast.error(apiError(e)); } finally { setSaving(false); }
   };
@@ -64,7 +87,12 @@ export default function BecomeSupplier() {
         <div><Label>Ti Deskripsyon</Label><Input value={f.short_description} onChange={(e) => set("short_description", e.target.value)} data-testid="supplier-short-desc" className="mt-1.5 h-11" placeholder="Yon fraz kout" /></div>
         <div><Label>Deskripsyon Konplè</Label><Textarea value={f.full_description} onChange={(e) => set("full_description", e.target.value)} data-testid="supplier-full-desc" className="mt-1.5" rows={4} /></div>
         <div className="grid grid-cols-2 gap-3">
-          <div><Label>Peyi<span className="text-red-500 ml-0.5">*</span></Label><Input value={f.country} onChange={(e) => set("country", e.target.value)} data-testid="supplier-country" className="mt-1.5 h-11" placeholder="USA" /></div>
+          <div><Label>Peyi<span className="text-red-500 ml-0.5">*</span></Label>
+            <Select value={f.country} onValueChange={(v) => set("country", v)}>
+              <SelectTrigger className="mt-1.5 h-11" data-testid="supplier-country"><SelectValue placeholder="Chwazi peyi" /></SelectTrigger>
+              <SelectContent>{countries.map((c) => <SelectItem key={c.name} value={c.name}>{c.name}{c.code ? ` (${c.code})` : ""}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
           <div><Label>Vil</Label><Input value={f.city} onChange={(e) => set("city", e.target.value)} data-testid="supplier-city" className="mt-1.5 h-11" /></div>
         </div>
         <div><Label>Sit Wèb</Label><Input value={f.website} onChange={(e) => set("website", e.target.value)} data-testid="supplier-website" className="mt-1.5 h-11" placeholder="https://..." /></div>
@@ -99,7 +127,9 @@ export default function BecomeSupplier() {
 
         <div className="border-t border-border pt-4">
           <div><Label>Email Kontak</Label><Input value={f.contact_email} onChange={(e) => set("contact_email", e.target.value)} data-testid="supplier-email" className="mt-1.5 h-11" /></div>
-          <div className="mt-3"><Label>Telefòn Kontak (entènasyonal)<span className="text-red-500 ml-0.5">*</span></Label><Input value={f.contact_phone} onChange={(e) => set("contact_phone", e.target.value)} data-testid="supplier-phone" className="mt-1.5 h-11" placeholder="+1 305 555 0123" /></div>
+          <div className="mt-3"><Label>Telefòn Kontak (entènasyonal)<span className="text-red-500 ml-0.5">*</span></Label><Input value={f.contact_phone} onChange={(e) => set("contact_phone", e.target.value)} data-testid="supplier-phone" className="mt-1.5 h-11" placeholder={selectedCountry?.code ? `${selectedCountry.code} ...` : "+1 305 555 0123"} />
+            {selectedCountry?.code && <p className="text-xs text-muted-foreground mt-1">Dwe kòmanse ak {selectedCountry.code} (kòd {selectedCountry.name}).</p>}
+          </div>
           <div className="flex items-center justify-between mt-3">
             <Label>Montre kontak piblikman</Label>
             <Switch checked={f.show_contact_publicly} onCheckedChange={(v) => set("show_contact_publicly", v)} data-testid="supplier-show-contact" />
