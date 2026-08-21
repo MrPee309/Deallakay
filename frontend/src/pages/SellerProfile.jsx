@@ -113,15 +113,14 @@ function ReviewDialog({ sellerId, onDone }) {
       <DialogTrigger asChild><Button className="bg-primary" data-testid="write-review-btn"><Star className="w-4 h-4 mr-1" />Bay yon avi</Button></DialogTrigger>
       <DialogContent>
         <DialogHeader><DialogTitle>Evalye vandè a (v2)</DialogTitle></DialogHeader>
-        <fieldset className="flex gap-1 justify-center py-2" onChange={(e) => setRating(Number(e.target.value))}>
-          <legend className="sr-only">Chwazi yon nòt</legend>
+        <div className="flex gap-1 justify-center py-2" role="radiogroup" aria-label="Chwazi yon nòt">
           {[1, 2, 3, 4, 5].map((n) => (
             <label key={n} className="cursor-pointer p-1" data-testid={`star-${n}`}>
               <input type="radio" name="seller-rating" value={n} checked={rating === n} onChange={() => setRating(n)} className="sr-only" />
               <Star className={`w-8 h-8 ${n <= rating ? "fill-secondary text-secondary" : "text-muted"}`} />
             </label>
           ))}
-        </fieldset>
+        </div>
         <Textarea placeholder="Kòmantè w (opsyonèl)" value={comment} onChange={(e) => setComment(e.target.value)} data-testid="review-comment" />
         <Button onClick={submit} disabled={loading} className="bg-primary" data-testid="submit-review-btn">{loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Voye avi"}</Button>
       </DialogContent>
