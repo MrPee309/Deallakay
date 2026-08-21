@@ -217,7 +217,7 @@ function ReviewDialog({ technicianId, onDone }) {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild><Button className="bg-primary" data-testid="write-technician-review-btn"><Star className="w-4 h-4 mr-1" />Bay yon avi</Button></DialogTrigger>
       <DialogContent>
-        <DialogHeader><DialogTitle>Evalye teknisyen an (v2)</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>Evalye teknisyen an</DialogTitle></DialogHeader>
         <div className="flex gap-1 justify-center py-2" role="radiogroup" aria-label="Chwazi yon nòt">
           {[1, 2, 3, 4, 5].map((n) => (
             <label key={n} className="cursor-pointer p-1 text-4xl leading-none select-none" data-testid={`tech-star-${n}`} style={{ color: n <= rating ? "#f5b301" : "#d1d5db" }}>
