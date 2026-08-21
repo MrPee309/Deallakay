@@ -28,6 +28,69 @@ SUPPLIER_TYPES = [
     "Repair Equipment Supplier", "Tools Supplier", "International Supplier", "Shipping/Logistics Provider",
 ]
 
+# USA prioritized first (main current target), rest ordered by relevance to
+# this marketplace. "Other" has no fixed calling code — phone is only checked
+# for a leading "+" in that case, not against a specific prefix.
+SUPPLIER_COUNTRIES = [
+    {"name": "United States", "code": "+1"},
+    {"name": "Canada", "code": "+1"},
+    {"name": "Dominican Republic", "code": "+1"},
+    {"name": "China", "code": "+86"},
+    {"name": "Mexico", "code": "+52"},
+    {"name": "Panama", "code": "+507"},
+    {"name": "Jamaica", "code": "+1"},
+    {"name": "Brazil", "code": "+55"},
+    {"name": "United Kingdom", "code": "+44"},
+    {"name": "France", "code": "+33"},
+    {"name": "Germany", "code": "+49"},
+    {"name": "Spain", "code": "+34"},
+    {"name": "South Korea", "code": "+82"},
+    {"name": "Japan", "code": "+81"},
+    {"name": "India", "code": "+91"},
+    {"name": "United Arab Emirates", "code": "+971"},
+    {"name": "Other", "code": ""},
+]
+_COUNTRY_CODES = {c["name"]: c["code"] for c in SUPPLIER_COUNTRIES}
+
+# Expected count of digits AFTER the country code, per country — catches a
+# fake number like "+1234" that has the right prefix but isn't a real phone
+# number length. Approximate (not full E.164 validation), but enough to
+# reject obviously-fake entries. (min, max) digits.
+_COUNTRY_PHONE_DIGITS = {
+    "United States": (10, 10), "Canada": (10, 10), "Dominican Republic": (10, 10),
+    "China": (11, 11), "Mexico": (10, 10), "Panama": (7, 8), "Jamaica": (10, 10),
+    "Brazil": (10, 11), "United Kingdom": (10, 10), "France": (9, 9), "Germany": (10, 11),
+    "Spain": (9, 9), "South Korea": (9, 10), "Japan": (9, 10), "India": (10, 10),
+    "United Arab Emirates": (9, 9),
+}
+
+
+@router.get("/supplier-countries")
+async def get_supplier_countries():
+    return SUPPLIER_COUNTRIES
+
+
+def _validate_supplier_phone(phone: str, country: str):
+    phone = phone.strip()
+    if not phone.startswith("+"):
+        raise HTTPException(status_code=400, detail="Antre nimewo a ak kòd peyi a (egzanp +1...).")
+    expected_code = _COUNTRY_CODES.get(country, "")
+    if expected_code:
+        if not phone.startswith(expected_code):
+            raise HTTPException(status_code=400, detail=f"Nimewo a dwe kòmanse ak {expected_code}, kòd peyi ({country}) ou chwazi a.")
+        digits_after_code = "".join(ch for ch in phone[len(expected_code):] if ch.isdigit())
+        lo, hi = _COUNTRY_PHONE_DIGITS.get(country, (7, 15))
+        if not (lo <= len(digits_after_code) <= hi):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Nimewo pa sanble valab pou {country} — apre {expected_code}, li dwe gen {lo if lo == hi else f'{lo}-{hi}'} chif.",
+            )
+    else:
+        total_digits = "".join(ch for ch in phone if ch.isdigit())
+        if not (7 <= len(total_digits) <= 15):
+            raise HTTPException(status_code=400, detail="Nimewo telefòn pa sanble valab.")
+
+
 
 # ---------------- Models ----------------
 class SupplierIn(BaseModel):
@@ -145,10 +208,11 @@ async def create_supplier(data: SupplierIn, user: dict = Depends(get_current_use
         raise HTTPException(status_code=400, detail="Antre peyi a.")
     if data.country.strip().lower() in ("ayiti", "haiti"):
         raise HTTPException(status_code=400, detail="Founisè yo dwe lòtbò — pa Ayiti.")
+    if data.country not in _COUNTRY_CODES:
+        raise HTTPException(status_code=400, detail="Chwazi yon peyi nan lis la.")
     if not data.contact_phone.strip():
         raise HTTPException(status_code=400, detail="Nimewo telefòn entènasyonal obligatwa.")
-    if not data.contact_phone.strip().startswith("+"):
-        raise HTTPException(status_code=400, detail="Antre nimewo a ak kòd peyi a (egzanp +1...).")
+    _validate_supplier_phone(data.contact_phone, data.country)
     if not data.accept_supplier_terms:
         raise HTTPException(status_code=400, detail="Ou dwe aksepte Kondisyon Founisè yo.")
     bad_types = [t for t in data.supplier_types if t not in SUPPLIER_TYPES]
@@ -159,14 +223,14 @@ async def create_supplier(data: SupplierIn, user: dict = Depends(get_current_use
         "owner_id": user["id"],
         "owner_username": user["username"],
         **data.model_dump(),
-        "status": "active",
+        "status": "pending",  # admin must approve before it appears in the public directory
         "verified": False,
         "featured": False,
         "created_at": now_iso(),
         "updated_at": now_iso(),
     }
     await db.suppliers.insert_one(dict(s))
-    return _public_supplier(s, authed=True)
+    return {**_public_supplier(s, authed=True), "message": "Demann ou an atant apwobasyon admin."}
 
 
 @router.get("/suppliers/my")
@@ -240,9 +304,12 @@ async def list_suppliers(
 @router.get("/suppliers/{sid}")
 async def get_supplier(sid: str, request: Request):
     s = await db.suppliers.find_one({"id": sid}, NO_ID)
-    if not s or s.get("status") != "active":
+    if not s:
         raise HTTPException(status_code=404, detail="Founisè pa jwenn.")
     user = await _optional_user(request)
+    is_owner_or_admin = bool(user and (user["id"] == s["owner_id"] or user.get("role") == "admin"))
+    if s.get("status") != "active" and not is_owner_or_admin:
+        raise HTTPException(status_code=404, detail="Founisè pa jwenn.")
     out = _public_supplier(s, authed=bool(user))
     out["is_owner"] = bool(user and user["id"] == s["owner_id"])
     if out["is_owner"]:
@@ -259,6 +326,8 @@ async def update_supplier(sid: str, data: SupplierIn, user: dict = Depends(get_c
     bad_types = [t for t in data.supplier_types if t not in SUPPLIER_TYPES]
     if bad_types:
         raise HTTPException(status_code=400, detail=f"Tip founisè pa valab: {', '.join(bad_types)}")
+    if data.contact_phone.strip():
+        _validate_supplier_phone(data.contact_phone, data.country)
     updates = data.model_dump()
     updates["updated_at"] = now_iso()
     await db.suppliers.update_one({"id": sid}, {"$set": updates})
