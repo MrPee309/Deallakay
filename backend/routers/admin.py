@@ -236,11 +236,19 @@ async def admin_suppliers(admin: dict = Depends(get_admin)):
 
 @router.put("/suppliers/{sid}/{action}")
 async def admin_supplier_action(sid: str, action: str, admin: dict = Depends(get_admin)):
-    status_map = {"suspend": {"status": "suspended"}, "unsuspend": {"status": "active"},
+    status_map = {"approve": {"status": "active"}, "reject": {"status": "rejected"},
+                  "suspend": {"status": "suspended"}, "unsuspend": {"status": "active"},
                   "feature": {"featured": True}, "unfeature": {"featured": False}}
     if action not in status_map:
         raise HTTPException(status_code=400, detail="Aksyon pa valab.")
+    s = await db.suppliers.find_one({"id": sid})
+    if not s:
+        raise HTTPException(status_code=404, detail="Pa jwenn.")
     await db.suppliers.update_one({"id": sid}, {"$set": status_map[action]})
+    if action == "approve":
+        await create_notification(s["owner_id"], "supplier_approved", f"'{s['company_name']}' apwouve — li vizib sou sit la kounye a!", f"/suppliers/{sid}")
+    elif action == "reject":
+        await create_notification(s["owner_id"], "supplier_rejected", f"Demann founisè '{s['company_name']}' rejte.", "")
     return {"message": "ok"}
 
 
