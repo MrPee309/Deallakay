@@ -220,9 +220,9 @@ function ReviewDialog({ technicianId, onDone }) {
         <DialogHeader><DialogTitle>Evalye teknisyen an (v2)</DialogTitle></DialogHeader>
         <div className="flex gap-1 justify-center py-2" role="radiogroup" aria-label="Chwazi yon nòt">
           {[1, 2, 3, 4, 5].map((n) => (
-            <label key={n} className="cursor-pointer p-1" data-testid={`tech-star-${n}`}>
+            <label key={n} className="cursor-pointer p-1 text-4xl leading-none select-none" data-testid={`tech-star-${n}`} style={{ color: n <= rating ? "#f5b301" : "#d1d5db" }}>
               <input type="radio" name="tech-rating" value={n} checked={rating === n} onChange={() => setRating(n)} className="sr-only" />
-              <Star className={`w-8 h-8 ${n <= rating ? "fill-secondary text-secondary" : "text-muted"}`} />
+              ★
             </label>
           ))}
         </div>
