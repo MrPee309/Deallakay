@@ -142,34 +142,76 @@ async def request_technician_verification(user: dict = Depends(get_current_user)
 
 @router.get("/technicians")
 async def list_technicians(
+    q: Optional[str] = None,
     specialty: Optional[str] = None,
     department: Optional[str] = None,
+    city: Optional[str] = None,
+    availability: Optional[str] = None,
     verified: Optional[bool] = None,
+    sort: str = "recommended",
     page: int = 1,
     limit: int = 20,
 ):
+    page = max(1, page)
+    limit = max(1, min(limit, 50))  # hard cap so a bad/huge limit can't force-load everything
     query: dict = {"status": "active"}
     if specialty:
         query["specialties"] = specialty
     if department:
         query["service_departments"] = department
+    if availability:
+        if availability not in AVAILABILITY_STATUSES:
+            raise HTTPException(status_code=400, detail="Estati disponiblite pa valab.")
+        query["availability"] = availability
     if verified:
         query["technician_verified"] = True
-    total = await db.technician_profiles.count_documents(query)
-    skip = max(0, (page - 1) * limit)
-    profiles = await db.technician_profiles.find(query, NO_ID).sort("rating", -1).skip(skip).limit(limit).to_list(limit)
+
+    # Pull the filtered pool (capped) and join with users server-side, since
+    # keyword search spans both collections (name lives on users, specialties/
+    # bio live on technician_profiles) — no Elasticsearch, just an in-app join
+    # over a bounded pool, safe at this marketplace's scale.
+    profiles = await db.technician_profiles.find(query, NO_ID).to_list(500)
     results = []
     for p in profiles:
         u = await db.users.find_one({"id": p["user_id"]}, NO_ID)
         if not u:
             continue
-        results.append({
+        if city and u.get("city") != city:
+            continue
+        entry = {
             "username": u["username"], "full_name": u["full_name"], "avatar": u.get("avatar", ""),
             "city": u.get("city"), "department": u.get("department"),
             "specialties": p.get("specialties", []), "technician_verified": p.get("technician_verified", False),
             "rating": p.get("rating", 0), "review_count": p.get("review_count", 0),
-        })
-    return {"technicians": results, "total": total, "page": page, "limit": limit, "pages": (total + limit - 1) // limit}
+            "availability": p.get("availability", "available"),
+            "years_experience": p.get("years_experience"),
+            "bio": p.get("bio", ""), "date_joined": p.get("date_joined"),
+        }
+        if q:
+            haystack = " ".join([
+                entry["full_name"], entry["username"], entry["bio"],
+                " ".join(entry["specialties"]), entry["city"] or "", entry["department"] or "",
+            ]).lower()
+            if q.lower() not in haystack:
+                continue
+        results.append(entry)
+
+    sort_key = {
+        "verified": lambda e: (not e["technician_verified"], -e["rating"]),
+        "rating": lambda e: -e["rating"],
+        "experience": lambda e: -(e["years_experience"] or 0),
+        "recent": lambda e: e["date_joined"] or "",
+        "recommended": lambda e: (not e["technician_verified"], -e["rating"], -(e["years_experience"] or 0)),
+    }
+    results.sort(key=sort_key.get(sort, sort_key["recommended"]), reverse=(sort == "recent"))
+    for e in results:
+        e.pop("date_joined", None)
+        e.pop("bio", None)
+
+    total = len(results)
+    skip = (page - 1) * limit
+    page_items = results[skip: skip + limit]
+    return {"technicians": page_items, "total": total, "page": page, "limit": limit, "pages": (total + limit - 1) // limit}
 
 
 @router.get("/technicians/work-feed")
@@ -272,3 +314,37 @@ async def public_work(username: str):
     if not u:
         raise HTTPException(status_code=404, detail="Teknisyen pa jwenn.")
     return await db.technician_work.find({"technician_user_id": u["id"]}, NO_ID).sort("created_at", -1).to_list(200)
+
+
+@router.post("/technicians/{username}/contact")
+async def contact_technician(username: str, user: dict = Depends(get_current_user)):
+    """Starts (or reuses) a conversation with a technician, reusing the same
+    `conversations` collection and Messages page as product conversations —
+    just without a product attached. `product_title`/`product_image` are
+    reused as the generic "subject" shown in the inbox, so no frontend/
+    messaging changes are needed."""
+    tu = await db.users.find_one({"username": username.lower()}, NO_ID)
+    if not tu:
+        raise HTTPException(status_code=404, detail="Teknisyen pa jwenn.")
+    if not tu.get("is_technician"):
+        raise HTTPException(status_code=400, detail="Itilizatè sa a pa yon teknisyen.")
+    if tu["id"] == user["id"]:
+        raise HTTPException(status_code=400, detail="Ou pa ka voye mesaj ba tèt ou.")
+    existing = await db.conversations.find_one({"seller_id": tu["id"], "buyer_id": user["id"], "product_id": None}, NO_ID)
+    if existing:
+        return existing
+    conv = {
+        "id": str(uuid.uuid4()),
+        "product_id": None,
+        "product_title": f"Teknisyen: {tu['full_name']}",
+        "product_image": tu.get("avatar", ""),
+        "buyer_id": user["id"],
+        "buyer_username": user["username"],
+        "seller_id": tu["id"],
+        "seller_username": tu["username"],
+        "last_message": "",
+        "created_at": now_iso(),
+        "updated_at": now_iso(),
+    }
+    await db.conversations.insert_one(dict(conv))
+    return conv
