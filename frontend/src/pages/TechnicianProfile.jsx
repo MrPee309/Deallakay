@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { MapPin, Calendar, Star, ShieldCheck, Wrench, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
+import { MapPin, Calendar, Star, ShieldCheck, Wrench, Loader2, ChevronLeft, ChevronRight, MessageCircle } from "lucide-react";
 import api, { apiError } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { useApp } from "@/contexts/AppContext";
@@ -16,6 +16,7 @@ export default function TechnicianProfile() {
   const { username } = useParams();
   const { user } = useAuth();
   const { lang } = useApp();
+  const nav = useNavigate();
   const [d, setD] = useState(null);
   const [reviews, setReviews] = useState([]);
   const [work, setWork] = useState([]);
@@ -76,6 +77,7 @@ export default function TechnicianProfile() {
             <Button className="bg-primary font-semibold" data-testid="call-technician-btn">Rele {u.phone}</Button>
           </a>
         )}
+        {canReview && <ContactButton username={u.username} nav={nav} />}
         {isOwnProfile && !profile.technician_verified && <VerifyRequestButton onDone={load} />}
       </div>
 
@@ -163,6 +165,22 @@ function WorkGalleryDialog({ work, onClose }) {
         {work.description && <p className="text-sm text-muted-foreground mt-2">{work.description}</p>}
       </DialogContent>
     </Dialog>
+  );
+}
+
+function ContactButton({ username, nav }) {
+  const [loading, setLoading] = useState(false);
+  const contact = async () => {
+    setLoading(true);
+    try {
+      const { data } = await api.post(`/technicians/${username}/contact`);
+      nav("/messages", { state: { conversationId: data.id } });
+    } catch (e) { toast.error(apiError(e)); } finally { setLoading(false); }
+  };
+  return (
+    <Button onClick={contact} disabled={loading} variant="outline" className="mt-4 ml-2" data-testid="contact-technician-btn">
+      {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <><MessageCircle className="w-4 h-4 mr-1.5" />Kontakte</>}
+    </Button>
   );
 }
 
