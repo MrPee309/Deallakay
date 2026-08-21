@@ -217,7 +217,7 @@ function ReviewDialog({ technicianId, onDone }) {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild><Button className="bg-primary" data-testid="write-technician-review-btn"><Star className="w-4 h-4 mr-1" />Bay yon avi</Button></DialogTrigger>
       <DialogContent>
-        <DialogHeader><DialogTitle>Evalye teknisyen an</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>Evalye teknisyen an (v2)</DialogTitle></DialogHeader>
         <fieldset className="flex gap-1 justify-center py-2" onChange={(e) => setRating(Number(e.target.value))}>
           <legend className="sr-only">Chwazi yon nòt</legend>
           {[1, 2, 3, 4, 5].map((n) => (
