@@ -226,3 +226,37 @@ async def admin_update_settings(data: SettingsIn, admin: dict = Depends(get_admi
         updates["safety_messages"] = data.safety_messages
     await db.settings.update_one({"id": "site-settings"}, {"$set": updates}, upsert=True)
     return {"message": "Paramèt anrejistre."}
+
+
+# ---------------- Supplier Hub moderation ----------------
+@router.get("/suppliers")
+async def admin_suppliers(admin: dict = Depends(get_admin)):
+    return await db.suppliers.find({}, NO_ID).sort("created_at", -1).to_list(500)
+
+
+@router.put("/suppliers/{sid}/{action}")
+async def admin_supplier_action(sid: str, action: str, admin: dict = Depends(get_admin)):
+    status_map = {"suspend": {"status": "suspended"}, "unsuspend": {"status": "active"},
+                  "feature": {"featured": True}, "unfeature": {"featured": False}}
+    if action not in status_map:
+        raise HTTPException(status_code=400, detail="Aksyon pa valab.")
+    await db.suppliers.update_one({"id": sid}, {"$set": status_map[action]})
+    return {"message": "ok"}
+
+
+@router.get("/supplier-verifications")
+async def admin_supplier_verifications(admin: dict = Depends(get_admin)):
+    return await db.supplier_verifications.find({}, NO_ID).sort("created_at", -1).to_list(500)
+
+
+@router.put("/supplier-verifications/{vid}/{decision}")
+async def admin_verify_supplier(vid: str, decision: str, admin: dict = Depends(get_admin)):
+    v = await db.supplier_verifications.find_one({"id": vid})
+    if not v:
+        raise HTTPException(status_code=404, detail="Pa jwenn.")
+    status = "approved" if decision == "approve" else "rejected"
+    await db.supplier_verifications.update_one({"id": vid}, {"$set": {"status": status}})
+    if decision == "approve":
+        await db.suppliers.update_one({"id": v["supplier_id"]}, {"$set": {"verified": True}})
+        await create_notification(v["owner_id"], "verified", f"'{v['company_name']}' se yon Founisè Verifye kounye a!", "")
+    return {"message": "ok"}
