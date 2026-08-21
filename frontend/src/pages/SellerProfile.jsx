@@ -112,12 +112,12 @@ function ReviewDialog({ sellerId, onDone }) {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild><Button className="bg-primary" data-testid="write-review-btn"><Star className="w-4 h-4 mr-1" />Bay yon avi</Button></DialogTrigger>
       <DialogContent>
-        <DialogHeader><DialogTitle>Evalye vandè a (v2)</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>Evalye vandè a</DialogTitle></DialogHeader>
         <div className="flex gap-1 justify-center py-2" role="radiogroup" aria-label="Chwazi yon nòt">
           {[1, 2, 3, 4, 5].map((n) => (
-            <label key={n} className="cursor-pointer p-1" data-testid={`star-${n}`}>
+            <label key={n} className="cursor-pointer p-1 text-4xl leading-none select-none" data-testid={`star-${n}`} style={{ color: n <= rating ? "#f5b301" : "#d1d5db" }}>
               <input type="radio" name="seller-rating" value={n} checked={rating === n} onChange={() => setRating(n)} className="sr-only" />
-              <Star className={`w-8 h-8 ${n <= rating ? "fill-secondary text-secondary" : "text-muted"}`} />
+              ★
             </label>
           ))}
         </div>
