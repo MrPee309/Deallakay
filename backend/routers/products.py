@@ -5,6 +5,7 @@ plus favorites (closely coupled — favoriting reads/writes products directly).
 Moved out of server.py during Phase 2A modularization. Behavior, paths, request
 formats, and response formats are unchanged from before the move.
 """
+import difflib
 import re
 import uuid
 from typing import List, Optional, Dict, Any
@@ -16,6 +17,23 @@ import security
 from shared import db, NO_ID, now_iso, slugify, get_current_user, create_notification
 
 router = APIRouter(prefix="/api", tags=["products"])
+
+
+def _fuzzy_score(query: str, text: str) -> float:
+    """Best word-level similarity between the query and any word in `text` —
+    catches close misspellings ("batry" vs "batri") that an exact substring
+    match misses, without needing a dedicated search engine."""
+    q_words = query.lower().split()
+    t_words = text.lower().split()
+    if not q_words or not t_words:
+        return 0.0
+    best = 0.0
+    for qw in q_words:
+        for tw in t_words:
+            r = difflib.SequenceMatcher(None, qw, tw).ratio()
+            if r > best:
+                best = r
+    return best
 
 
 def _build_search_text(title: str, description: str, subcategory: Optional[str], specs: Dict[str, Any]) -> str:
@@ -177,7 +195,13 @@ async def list_products(
         query["price"] = pr
     if q:
         rx = {"$regex": re.escape(q), "$options": "i"}
-        search_or = {"$or": [{"title": rx}, {"description": rx}, {"seller_username": rx}, {"subcategory": rx}, {"search_text": rx}]}
+        # City/department were previously excluded from free-text search — a
+        # location name typed in the search box matched nothing unless it
+        # happened to also appear in the title/description.
+        search_or = {"$or": [
+            {"title": rx}, {"description": rx}, {"seller_username": rx},
+            {"subcategory": rx}, {"search_text": rx}, {"city": rx}, {"department": rx},
+        ]}
         stock_or = query.pop("$or")
         query["$and"] = [{"$or": stock_or}, search_or]
     if verified_seller:
@@ -196,6 +220,30 @@ async def list_products(
     total = await db.products.count_documents(query)
     skip = max(0, (page - 1) * limit)
     products = await db.products.find(query, NO_ID).sort(sort_by).skip(skip).limit(limit).to_list(limit)
+
+    # Fuzzy fallback: the exact search above found nothing for a typed
+    # keyword — try again tolerating close misspellings (e.g. "batry" for
+    # "batri") over a bounded pool of otherwise-matching, in-stock products,
+    # instead of just telling the person "no results" for a typo.
+    if q and total == 0:
+        base_filters: Dict[str, Any] = {
+            "status": "active",
+            "$or": [{"quantity": {"$exists": False}}, {"quantity": {"$gt": 0}}],
+        }
+        for k in ("category", "subcategory", "department", "city", "condition", "seller_id", "price"):
+            if k in query:
+                base_filters[k] = query[k]
+        candidates = await db.products.find(base_filters, NO_ID).to_list(300)
+        scored = []
+        for p in candidates:
+            text = f"{p.get('title', '')} {p.get('search_text', '')}"
+            score = _fuzzy_score(q, text)
+            if score >= 0.72:  # close-misspelling threshold, not "loosely related"
+                scored.append((score, p))
+        scored.sort(key=lambda x: -x[0])
+        products = [p for _, p in scored[:limit]]
+        total = len(scored)
+
     for p in products:
         p.pop("imei", None)
         p["images"] = p.get("images", [])[:1]
