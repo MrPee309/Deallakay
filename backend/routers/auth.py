@@ -314,3 +314,18 @@ async def reset_password(data: ResetIn, _rl=Depends(security.rate_limit("reset",
 async def verify_phone(user: dict = Depends(get_current_user)):
     await db.users.update_one({"id": user["id"]}, {"$set": {"phone_verified": True}})
     return {"message": "Telefòn ou verifye."}
+
+
+class AvatarIn(BaseModel):
+    avatar: str  # base64 data URL — validated the same way product images are
+
+
+@router.put("/me/avatar")
+async def update_my_avatar(data: AvatarIn, user: dict = Depends(get_current_user)):
+    """Lets ANY authenticated user set their own profile photo — previously
+    avatar could only be set indirectly through a seller/technician profile
+    update. Reuses the existing image validation used for product photos
+    (magic-byte MIME check, size limit) rather than adding a new upload path."""
+    security.validate_images([data.avatar])
+    await db.users.update_one({"id": user["id"]}, {"$set": {"avatar": data.avatar}})
+    return {"avatar": data.avatar}
