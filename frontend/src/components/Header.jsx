@@ -111,6 +111,9 @@ export default function Header() {
               </SheetTrigger>
               <SheetContent side="right" className="w-72 overflow-y-auto flex flex-col">
                 <div className="flex flex-col gap-1 mt-8">
+                  <Link to="/sell" onClick={() => setMenuOpen(false)} data-testid="mobile-nav-sell" className="text-sm font-semibold px-3 py-2.5 rounded-lg bg-primary text-primary-foreground flex items-center gap-2 mb-2">
+                    <Plus className="w-4 h-4" /> {t("sell")}
+                  </Link>
                   <Link to="/browse" onClick={() => setMenuOpen(false)} data-testid="mobile-nav-all" className="text-sm font-medium px-3 py-2.5 rounded-lg hover:bg-muted flex items-center gap-2">
                     <Menu className="w-4 h-4" /> {t("all")}
                   </Link>
