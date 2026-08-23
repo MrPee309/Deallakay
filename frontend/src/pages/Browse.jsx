@@ -56,7 +56,16 @@ export default function Browse() {
       const qVal = params.get("q");
       if (qVal) {
         try {
-          const techRes = await api.get(`/technicians?q=${encodeURIComponent(qVal)}&limit=6`);
+          // A generic word for "technician" itself (in any of the site's
+          // languages) won't literally appear inside a technician's own
+          // name/bio/specialty text, so a plain substring match against it
+          // finds nothing even though technicians clearly exist — treat
+          // those words as "show the technician directory" instead of a
+          // keyword filter.
+          const GENERIC_TECHNICIAN_WORDS = ["teknisyen", "technicien", "technician", "teknisyèn"];
+          const isGenericTechWord = GENERIC_TECHNICIAN_WORDS.includes(qVal.trim().toLowerCase());
+          const techQs = isGenericTechWord ? "" : `q=${encodeURIComponent(qVal)}&`;
+          const techRes = await api.get(`/technicians?${techQs}limit=6`);
           setTechnicians(techRes.data.technicians || []);
         } catch {
           setTechnicians([]);
