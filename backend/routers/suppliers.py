@@ -1,460 +1,376 @@
 """
-International Supplier Hub: a B2B directory where DealLaKay technicians and
-sellers can discover international suppliers (manufacturers, distributors,
-wholesalers), see what they carry, check Haiti shipping, and send inquiries.
+Product endpoints: create, list, detail, update, delete, mark-sold, restore,
+plus favorites (closely coupled — favoriting reads/writes products directly).
 
-DealLaKay is a connection/discovery layer here — NOT a payment processor or
-merchant of record. No checkout, no payment, no order fulfillment in this
-phase (matches the "future order support" placeholder only).
-
-New collections (justified — this is a genuinely new business-entity type,
-not a duplicate of users/products):
-  suppliers, supplier_products, supplier_shipping_services, supplier_inquiries
+Moved out of server.py during Phase 2A modularization. Behavior, paths, request
+formats, and response formats are unchanged from before the move.
 """
+import difflib
+import re
 import uuid
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 
 from fastapi import APIRouter, HTTPException, Depends, Request
 from pydantic import BaseModel
 
-import auth as auth_lib
-from shared import db, NO_ID, now_iso, get_current_user, create_notification
+import security
+from shared import db, NO_ID, now_iso, slugify, get_current_user, create_notification
 
-router = APIRouter(prefix="/api", tags=["suppliers"])
-
-SUPPLIER_TYPES = [
-    "Manufacturer", "Distributor", "Wholesaler", "Parts Supplier", "Electronics Supplier",
-    "Mobile Phone Parts Supplier", "Laptop Parts Supplier", "Accessories Supplier",
-    "Repair Equipment Supplier", "Tools Supplier", "International Supplier", "Shipping/Logistics Provider",
-]
-
-# USA prioritized first (main current target), rest ordered by relevance to
-# this marketplace. "Other" has no fixed calling code — phone is only checked
-# for a leading "+" in that case, not against a specific prefix.
-SUPPLIER_COUNTRIES = [
-    {"name": "United States", "code": "+1"},
-    {"name": "Canada", "code": "+1"},
-    {"name": "Dominican Republic", "code": "+1"},
-    {"name": "China", "code": "+86"},
-    {"name": "Mexico", "code": "+52"},
-    {"name": "Panama", "code": "+507"},
-    {"name": "Jamaica", "code": "+1"},
-    {"name": "Brazil", "code": "+55"},
-    {"name": "United Kingdom", "code": "+44"},
-    {"name": "France", "code": "+33"},
-    {"name": "Germany", "code": "+49"},
-    {"name": "Spain", "code": "+34"},
-    {"name": "South Korea", "code": "+82"},
-    {"name": "Japan", "code": "+81"},
-    {"name": "India", "code": "+91"},
-    {"name": "United Arab Emirates", "code": "+971"},
-    {"name": "Other", "code": ""},
-]
-_COUNTRY_CODES = {c["name"]: c["code"] for c in SUPPLIER_COUNTRIES}
-
-# Expected count of digits AFTER the country code, per country — catches a
-# fake number like "+1234" that has the right prefix but isn't a real phone
-# number length. Approximate (not full E.164 validation), but enough to
-# reject obviously-fake entries. (min, max) digits.
-_COUNTRY_PHONE_DIGITS = {
-    "United States": (10, 10), "Canada": (10, 10), "Dominican Republic": (10, 10),
-    "China": (11, 11), "Mexico": (10, 10), "Panama": (7, 8), "Jamaica": (10, 10),
-    "Brazil": (10, 11), "United Kingdom": (10, 10), "France": (9, 9), "Germany": (10, 11),
-    "Spain": (9, 9), "South Korea": (9, 10), "Japan": (9, 10), "India": (10, 10),
-    "United Arab Emirates": (9, 9),
-}
+router = APIRouter(prefix="/api", tags=["products"])
 
 
-@router.get("/supplier-countries")
-async def get_supplier_countries():
-    return SUPPLIER_COUNTRIES
+def _fuzzy_score(query: str, text: str) -> float:
+    """Best word-level similarity between the query and any word in `text` —
+    catches close misspellings ("batry" vs "batri") that an exact substring
+    match misses, without needing a dedicated search engine."""
+    q_words = query.lower().split()
+    t_words = text.lower().split()
+    if not q_words or not t_words:
+        return 0.0
+    best = 0.0
+    for qw in q_words:
+        for tw in t_words:
+            r = difflib.SequenceMatcher(None, qw, tw).ratio()
+            if r > best:
+                best = r
+    return best
 
 
-def _validate_supplier_phone(phone: str, country: str):
-    phone = phone.strip()
-    if not phone.startswith("+"):
-        raise HTTPException(status_code=400, detail="Antre nimewo a ak kòd peyi a (egzanp +1...).")
-    expected_code = _COUNTRY_CODES.get(country, "")
-    if expected_code:
-        if not phone.startswith(expected_code):
-            raise HTTPException(status_code=400, detail=f"Nimewo a dwe kòmanse ak {expected_code}, kòd peyi ({country}) ou chwazi a.")
-        digits_after_code = "".join(ch for ch in phone[len(expected_code):] if ch.isdigit())
-        lo, hi = _COUNTRY_PHONE_DIGITS.get(country, (7, 15))
-        if not (lo <= len(digits_after_code) <= hi):
-            raise HTTPException(
-                status_code=400,
-                detail=f"Nimewo pa sanble valab pou {country} — apre {expected_code}, li dwe gen {lo if lo == hi else f'{lo}-{hi}'} chif.",
-            )
-    else:
-        total_digits = "".join(ch for ch in phone if ch.isdigit())
-        if not (7 <= len(total_digits) <= 15):
-            raise HTTPException(status_code=400, detail="Nimewo telefòn pa sanble valab.")
+def _build_search_text(title: str, description: str, subcategory: Optional[str], specs: Dict[str, Any]) -> str:
+    """
+    Concatenates every searchable field (including free-form specs values —
+    e.g. compatible_model, part_number) into one lowercase blob so buyers can
+    search things like "iPhone 13 LCD" or "MacBook A2338" and match specs that
+    live outside title/description. Reuses the existing MongoDB regex search —
+    no Elasticsearch/Algolia needed.
+    """
+    parts = [title or "", description or "", subcategory or ""]
+    for v in (specs or {}).values():
+        if isinstance(v, str):
+            parts.append(v)
+    return " ".join(parts).lower()
 
 
-
-# ---------------- Models ----------------
-class SupplierIn(BaseModel):
-    company_name: str
-    logo: str = ""
-    cover_image: str = ""
-    short_description: str = ""
-    full_description: str = ""
-    country: str
-    state_province: str = ""
-    city: str = ""
-    website: str = ""
-    supplier_types: List[str] = []
-    categories: List[str] = []  # reuses DealLaKay category "type" values (phone/laptop/parts/accessories/tools)
-    brands: List[str] = []
-    years_in_business: Optional[int] = None
-    wholesale_available: bool = False
-    moq_info: str = ""
-    ships_to_haiti: bool = False
-    ships_internationally: bool = False
-    contact_email: str = ""
-    contact_phone: str
-    contact_whatsapp: str = ""
-    external_contact_link: str = ""
-    show_contact_publicly: bool = False  # supplier controls visibility; default off per privacy rules
-    accept_supplier_terms: bool = False
-
-
-class SupplierProductIn(BaseModel):
-    name: str
-    category: Optional[str] = None
-    brand: str = ""
-    model_compatibility: str = ""
+class ProductIn(BaseModel):
+    category: str
+    subcategory: Optional[str] = None
+    title: str
     description: str = ""
-    availability: str = "in_stock"  # in_stock, limited, out_of_stock, made_to_order
-    wholesale_price: Optional[float] = None
-    moq: Optional[int] = None
-    product_url: str = ""
-    sku: str = ""
-
-
-class ShippingServiceIn(BaseModel):
-    name: str
-    owned_by_supplier: bool = True
-    carrier_name: str = ""
-    countries_served: List[str] = []
-    ships_to_haiti: bool = False
-    estimated_delivery: str = ""
-    tracking_available: bool = False
-    pickup_available: bool = False
-    quote_required: bool = False
-    notes: str = ""
-
-
-class SupplierInquiryIn(BaseModel):
-    product_requested: str
+    price: float
     quantity: int = 1
-    target_price: Optional[float] = None
-    message: str = ""
-    shipping_destination: str = "Ayiti"
-    related_request_id: Optional[str] = None
+    condition: str = "Used"
+    department: str
+    city: str
+    neighborhood: Optional[str] = ""
+    specs: Dict[str, Any] = {}
+    images: List[str] = []
+    main_image_index: int = 0
+    imei: Optional[str] = ""
+    status: str = "active"
 
 
-# ---------------- Helpers ----------------
-async def _optional_user(request: Request) -> Optional[dict]:
-    auth_header = request.headers.get("Authorization", "")
-    token = auth_header[7:] if auth_header.startswith("Bearer ") else None
-    if not token:
-        return None
-    try:
-        payload = auth_lib.decode_token(token)
-    except Exception:
-        return None
-    return await db.users.find_one({"id": payload["sub"]}, NO_ID)
+def strip_private(p: dict, is_owner=False):
+    p = {k: v for k, v in p.items() if k != "_id"}
+    if not is_owner:
+        p.pop("imei", None)
+    return p
 
 
-def _public_supplier(s: dict, authed: bool) -> dict:
-    out = {
-        "id": s["id"], "company_name": s["company_name"], "logo": s.get("logo", ""),
-        "cover_image": s.get("cover_image", ""), "short_description": s.get("short_description", ""),
-        "country": s["country"], "state_province": s.get("state_province", ""), "city": s.get("city", ""),
-        "supplier_types": s.get("supplier_types", []), "categories": s.get("categories", []),
-        "brands": s.get("brands", []), "years_in_business": s.get("years_in_business"),
-        "wholesale_available": s.get("wholesale_available", False), "moq_info": s.get("moq_info", ""),
-        "ships_to_haiti": s.get("ships_to_haiti", False), "ships_internationally": s.get("ships_internationally", False),
-        "verified": s.get("verified", False), "featured": s.get("featured", False),
-        "status": s.get("status", "active"), "full_description": s.get("full_description", ""),
-        "website": s.get("website", ""),
+async def _notify_matching_alerts(product: dict):
+    """When a product is published, alert any buyer whose saved Deal Alert
+    criteria match it — structured filters (category/subcategory/department/
+    city/max_price) are matched directly in the DB query; keyword is matched
+    in-app against the product's search_text since it's a per-alert substring
+    check MongoDB can't express well as a single query."""
+    if product["status"] != "active":
+        return
+    query: Dict[str, Any] = {
+        "active": True,
+        "user_id": {"$ne": product["seller_id"]},
+        "$and": [
+            {"$or": [{"category": None}, {"category": product["category"]}]},
+            {"$or": [{"subcategory": None}, {"subcategory": product.get("subcategory")}]},
+            {"$or": [{"department": None}, {"department": product["department"]}]},
+            {"$or": [{"city": None}, {"city": product["city"]}]},
+            {"$or": [{"max_price": None}, {"max_price": {"$gte": product["price"]}}]},
+        ],
     }
-    # Contact details only reach authenticated users, and only if the supplier
-    # opted to show them (or the caller owns the profile — handled by caller).
-    if authed and s.get("show_contact_publicly"):
-        out.update({
-            "contact_email": s.get("contact_email", ""), "contact_phone": s.get("contact_phone", ""),
-            "contact_whatsapp": s.get("contact_whatsapp", ""), "external_contact_link": s.get("external_contact_link", ""),
-        })
-    return out
+    candidates = await db.deal_alerts.find(query, NO_ID).to_list(2000)
+    search_text = product.get("search_text", "")
+    for a in candidates:
+        if a.get("keyword") and a["keyword"].lower() not in search_text:
+            continue
+        await create_notification(a["user_id"], "deal_alert", f"Nouvo pwodwi ki matche alèt ou: '{product['title']}'", f"/product/{product['slug']}")
 
 
-async def _get_owned_supplier(sid: str, user: dict) -> dict:
-    s = await db.suppliers.find_one({"id": sid})
-    if not s:
-        raise HTTPException(status_code=404, detail="Founisè pa jwenn.")
-    if s["owner_id"] != user["id"] and user.get("role") != "admin":
-        raise HTTPException(status_code=403, detail="Ou pa gen dwa.")
-    return s
-
-
-# ---------------- Supplier profile ----------------
-@router.post("/suppliers")
-async def create_supplier(data: SupplierIn, user: dict = Depends(get_current_user)):
-    if not data.company_name.strip():
-        raise HTTPException(status_code=400, detail="Antre non konpayi a.")
-    if not data.country.strip():
-        raise HTTPException(status_code=400, detail="Antre peyi a.")
-    if data.country.strip().lower() in ("ayiti", "haiti"):
-        raise HTTPException(status_code=400, detail="Founisè yo dwe lòtbò — pa Ayiti.")
-    if data.country not in _COUNTRY_CODES:
-        raise HTTPException(status_code=400, detail="Chwazi yon peyi nan lis la.")
-    if not data.contact_phone.strip():
-        raise HTTPException(status_code=400, detail="Nimewo telefòn entènasyonal obligatwa.")
-    _validate_supplier_phone(data.contact_phone, data.country)
-    if not data.accept_supplier_terms:
-        raise HTTPException(status_code=400, detail="Ou dwe aksepte Kondisyon Founisè yo.")
-    bad_types = [t for t in data.supplier_types if t not in SUPPLIER_TYPES]
-    if bad_types:
-        raise HTTPException(status_code=400, detail=f"Tip founisè pa valab: {', '.join(bad_types)}")
-    s = {
-        "id": str(uuid.uuid4()),
-        "owner_id": user["id"],
-        "owner_username": user["username"],
-        **data.model_dump(),
-        "status": "pending",  # admin must approve before it appears in the public directory
-        "verified": False,
-        "featured": False,
+@router.post("/products")
+async def create_product(data: ProductIn, user: dict = Depends(get_current_user)):
+    if not user.get("is_seller"):
+        raise HTTPException(status_code=403, detail="Ou dwe yon vandè pou vann.")
+    if data.status not in ("active", "draft"):
+        raise HTTPException(status_code=400, detail="Estati pa valab.")
+    if data.quantity < 0:
+        raise HTTPException(status_code=400, detail="Kantite pa ka negatif.")
+    security.validate_images(data.images)
+    settings = await db.settings.find_one({"id": "site-settings"}, NO_ID)
+    listing_mode = settings.get("listing_mode", "auto") if settings else "auto"
+    status = data.status
+    if status == "active" and listing_mode == "approval":
+        status = "pending"
+    pid = str(uuid.uuid4())
+    slug = f"{slugify(data.title)}-{pid[:6]}"
+    doc = {
+        "id": pid,
+        "slug": slug,
+        "seller_id": user["id"],
+        "seller_username": user["username"],
+        "category": data.category,
+        "subcategory": data.subcategory,
+        "title": data.title.strip(),
+        "description": data.description,
+        "price": data.price,
+        "currency": "HTG",
+        "quantity": data.quantity,
+        "condition": data.condition,
+        "department": data.department,
+        "city": data.city,
+        "neighborhood": data.neighborhood,
+        "specs": data.specs,
+        "images": data.images[:10],
+        "main_image_index": data.main_image_index,
+        "imei": data.imei or "",
+        "imei_verified": False,
+        "status": status,
+        "search_text": _build_search_text(data.title, data.description, data.subcategory, data.specs),
+        "views": 0,
+        "favorites_count": 0,
         "created_at": now_iso(),
         "updated_at": now_iso(),
     }
-    await db.suppliers.insert_one(dict(s))
-    return {**_public_supplier(s, authed=True), "message": "Demann ou an atant apwobasyon admin."}
+    await db.products.insert_one(doc)
+    await _notify_matching_alerts(doc)
+    return strip_private(doc, is_owner=True)
 
 
-@router.get("/suppliers/my")
-async def my_suppliers(user: dict = Depends(get_current_user)):
-    items = await db.suppliers.find({"owner_id": user["id"]}, NO_ID).to_list(50)
-    return [_public_supplier(s, authed=True) for s in items]
-
-
-@router.get("/suppliers")
-async def list_suppliers(
-    request: Request,
+@router.get("/products")
+async def list_products(
     q: Optional[str] = None,
-    country: Optional[str] = None,
-    supplier_type: Optional[str] = None,
     category: Optional[str] = None,
-    brand: Optional[str] = None,
-    ships_to_haiti: Optional[bool] = None,
-    verified: Optional[bool] = None,
-    sort: str = "recommended",
+    subcategory: Optional[str] = None,
+    department: Optional[str] = None,
+    city: Optional[str] = None,
+    condition: Optional[str] = None,
+    min_price: Optional[float] = None,
+    max_price: Optional[float] = None,
+    verified_seller: Optional[bool] = None,
+    seller_id: Optional[str] = None,
+    sort: str = "newest",
     page: int = 1,
     limit: int = 20,
 ):
-    page = max(1, page)
-    limit = max(1, min(limit, 50))
-    query: dict = {"status": "active"}
-    if country:
-        query["country"] = country
-    if supplier_type:
-        query["supplier_types"] = supplier_type
+    query: Dict[str, Any] = {
+        "status": "active",
+        # Treat a missing "quantity" as in-stock too — safe default for any
+        # product created before this field existed, per backward-compat rules.
+        "$or": [{"quantity": {"$exists": False}}, {"quantity": {"$gt": 0}}],
+    }
     if category:
-        query["categories"] = category
-    if brand:
-        query["brands"] = brand
-    if ships_to_haiti:
-        query["ships_to_haiti"] = True
-    if verified:
-        query["verified"] = True
+        query["category"] = category
+    if subcategory:
+        query["subcategory"] = subcategory
+    if department:
+        query["department"] = department
+    if city:
+        query["city"] = city
+    if condition:
+        query["condition"] = condition
+    if seller_id:
+        query["seller_id"] = seller_id
+    if min_price is not None or max_price is not None:
+        pr: Dict[str, Any] = {}
+        if min_price is not None:
+            pr["$gte"] = min_price
+        if max_price is not None:
+            pr["$lte"] = max_price
+        query["price"] = pr
+    if q:
+        rx = {"$regex": re.escape(q), "$options": "i"}
+        # City/department were previously excluded from free-text search — a
+        # location name typed in the search box matched nothing unless it
+        # happened to also appear in the title/description.
+        search_or = {"$or": [
+            {"title": rx}, {"description": rx}, {"seller_username": rx},
+            {"subcategory": rx}, {"search_text": rx}, {"city": rx}, {"department": rx},
+        ]}
+        stock_or = query.pop("$or")
+        query["$and"] = [{"$or": stock_or}, search_or]
+    if verified_seller:
+        verified_ids = await db.seller_profiles.find({"seller_verified": True}, {"user_id": 1}).to_list(1000)
+        query["seller_id"] = {"$in": [v["user_id"] for v in verified_ids]}
 
-    items = await db.suppliers.find(query, NO_ID).to_list(500)
-    results = []
-    for s in items:
-        if q:
-            haystack = " ".join([
-                s["company_name"], s.get("short_description", ""), s.get("country", ""),
-                " ".join(s.get("brands", [])), " ".join(s.get("supplier_types", [])),
-            ]).lower()
-            if q.lower() not in haystack:
-                continue
-        results.append(s)
-
-    sort_key = {
-        "verified": lambda e: (not e.get("verified"), not e.get("featured")),
-        "recommended": lambda e: (not e.get("featured"), not e.get("verified")),
-        "name": lambda e: e["company_name"].lower(),
-        "recent": lambda e: e.get("created_at") or "",
+    sort_map = {
+        "newest": [("created_at", -1)],
+        "oldest": [("created_at", 1)],
+        "price_low": [("price", 1)],
+        "price_high": [("price", -1)],
+        "most_viewed": [("views", -1)],
+        "most_popular": [("favorites_count", -1)],
     }
-    results.sort(key=sort_key.get(sort, sort_key["recommended"]), reverse=(sort == "recent"))
+    sort_by = sort_map.get(sort, [("created_at", -1)])
+    total = await db.products.count_documents(query)
+    skip = max(0, (page - 1) * limit)
+    products = await db.products.find(query, NO_ID).sort(sort_by).skip(skip).limit(limit).to_list(limit)
 
-    total = len(results)
-    skip = (page - 1) * limit
-    page_items = results[skip: skip + limit]
-    # Anonymous visitors can browse the directory (discoverability), but never
-    # get contact details — _public_supplier() strips those unless authed=True.
-    user = await _optional_user(request)
-    return {
-        "suppliers": [_public_supplier(s, authed=bool(user)) for s in page_items],
-        "total": total, "page": page, "limit": limit, "pages": (total + limit - 1) // limit,
-    }
+    # Fuzzy fallback: the exact search above found nothing for a typed
+    # keyword — try again tolerating close misspellings (e.g. "batry" for
+    # "batri") over a bounded pool of otherwise-matching, in-stock products,
+    # instead of just telling the person "no results" for a typo.
+    if q and total == 0:
+        base_filters: Dict[str, Any] = {
+            "status": "active",
+            "$or": [{"quantity": {"$exists": False}}, {"quantity": {"$gt": 0}}],
+        }
+        for k in ("category", "subcategory", "department", "city", "condition", "seller_id", "price"):
+            if k in query:
+                base_filters[k] = query[k]
+        candidates = await db.products.find(base_filters, NO_ID).to_list(300)
+        scored = []
+        for p in candidates:
+            text = f"{p.get('title', '')} {p.get('search_text', '')}"
+            score = _fuzzy_score(q, text)
+            if score >= 0.72:  # close-misspelling threshold, not "loosely related"
+                scored.append((score, p))
+        scored.sort(key=lambda x: -x[0])
+        products = [p for _, p in scored[:limit]]
+        total = len(scored)
 
-
-@router.get("/suppliers/{sid}")
-async def get_supplier(sid: str, request: Request):
-    s = await db.suppliers.find_one({"id": sid}, NO_ID)
-    if not s:
-        raise HTTPException(status_code=404, detail="Founisè pa jwenn.")
-    user = await _optional_user(request)
-    is_owner_or_admin = bool(user and (user["id"] == s["owner_id"] or user.get("role") == "admin"))
-    if s.get("status") != "active" and not is_owner_or_admin:
-        raise HTTPException(status_code=404, detail="Founisè pa jwenn.")
-    out = _public_supplier(s, authed=bool(user))
-    out["is_owner"] = bool(user and user["id"] == s["owner_id"])
-    if out["is_owner"]:
-        out.update({
-            "contact_email": s.get("contact_email", ""), "contact_phone": s.get("contact_phone", ""),
-            "contact_whatsapp": s.get("contact_whatsapp", ""), "external_contact_link": s.get("external_contact_link", ""),
-        })
-    return out
-
-
-@router.put("/suppliers/{sid}")
-async def update_supplier(sid: str, data: SupplierIn, user: dict = Depends(get_current_user)):
-    await _get_owned_supplier(sid, user)
-    bad_types = [t for t in data.supplier_types if t not in SUPPLIER_TYPES]
-    if bad_types:
-        raise HTTPException(status_code=400, detail=f"Tip founisè pa valab: {', '.join(bad_types)}")
-    if data.contact_phone.strip():
-        _validate_supplier_phone(data.contact_phone, data.country)
-    updates = data.model_dump()
-    updates["updated_at"] = now_iso()
-    await db.suppliers.update_one({"id": sid}, {"$set": updates})
-    return {"message": "Founisè modifye."}
+    for p in products:
+        p.pop("imei", None)
+        p["images"] = p.get("images", [])[:1]
+    return {"products": products, "total": total, "page": page, "limit": limit, "pages": (total + limit - 1) // limit}
 
 
-@router.post("/suppliers/{sid}/verify-request")
-async def request_supplier_verification(sid: str, user: dict = Depends(get_current_user)):
-    s = await _get_owned_supplier(sid, user)
-    existing = await db.supplier_verifications.find_one({"supplier_id": sid, "status": "pending"})
-    if existing:
-        return {"message": "Demann verifikasyon deja an atant."}
-    await db.supplier_verifications.insert_one({
-        "id": str(uuid.uuid4()), "supplier_id": sid, "company_name": s["company_name"],
-        "owner_id": user["id"], "status": "pending", "created_at": now_iso(),
-    })
-    return {"message": "Demann verifikasyon voye. Admin ap revize li."}
+@router.get("/my-products")
+async def my_products(status: Optional[str] = None, user: dict = Depends(get_current_user)):
+    query = {"seller_id": user["id"]}
+    if status:
+        query["status"] = status
+    products = await db.products.find(query, NO_ID).sort("created_at", -1).to_list(500)
+    for p in products:
+        p["images"] = p.get("images", [])[:1]
+    return products
 
 
-# ---------------- Supplier products ----------------
-@router.post("/suppliers/{sid}/products")
-async def add_supplier_product(sid: str, data: SupplierProductIn, user: dict = Depends(get_current_user)):
-    await _get_owned_supplier(sid, user)
-    if not data.name.strip():
-        raise HTTPException(status_code=400, detail="Antre non pwodwi a.")
-    p = {"id": str(uuid.uuid4()), "supplier_id": sid, **data.model_dump(), "created_at": now_iso()}
-    await db.supplier_products.insert_one(dict(p))
-    return {k: v for k, v in p.items() if k != "_id"}
-
-
-@router.get("/suppliers/{sid}/products")
-async def list_supplier_products(sid: str):
-    return await db.supplier_products.find({"supplier_id": sid}, NO_ID).sort("created_at", -1).to_list(200)
-
-
-@router.put("/suppliers/{sid}/products/{pid}")
-async def update_supplier_product(sid: str, pid: str, data: SupplierProductIn, user: dict = Depends(get_current_user)):
-    await _get_owned_supplier(sid, user)
-    p = await db.supplier_products.find_one({"id": pid, "supplier_id": sid})
+@router.get("/products/{identifier}")
+async def get_product(identifier: str, request: Request):
+    p = await db.products.find_one({"$or": [{"id": identifier}, {"slug": identifier}]})
     if not p:
         raise HTTPException(status_code=404, detail="Pwodwi pa jwenn.")
-    await db.supplier_products.update_one({"id": pid}, {"$set": data.model_dump()})
-    return {"message": "ok"}
+    await db.products.update_one({"id": p["id"]}, {"$inc": {"views": 1}})
+    p["views"] = p.get("views", 0) + 1
+    seller = await db.users.find_one({"id": p["seller_id"]}, NO_ID)
+    prof = await db.seller_profiles.find_one({"user_id": p["seller_id"]}, NO_ID)
+    is_owner = False
+    is_fav = False
+    try:
+        cur = await get_current_user(request)
+        is_owner = cur["id"] == p["seller_id"] or cur.get("role") == "admin"
+        is_fav = bool(await db.favorites.find_one({"user_id": cur["id"], "product_id": p["id"]}))
+    except Exception:
+        pass
+    result = strip_private(p, is_owner=is_owner)
+    seller_info = None
+    if seller and prof:
+        seller_info = {
+            "id": seller["id"], "full_name": seller["full_name"], "username": seller["username"],
+            "avatar": seller.get("avatar", ""), "department": seller.get("department"), "city": seller.get("city"),
+            "created_at": seller.get("created_at"),
+            "email_verified": seller.get("email_verified"), "phone_verified": seller.get("phone_verified"),
+            "seller_verified": prof.get("seller_verified"), "rating": prof.get("rating", 0),
+            "review_count": prof.get("review_count", 0),
+            "phone": seller.get("phone") if prof.get("show_phone") else None,
+            "whatsapp_enabled": prof.get("whatsapp_enabled"),
+            "whatsapp_number": prof.get("whatsapp_number") if prof.get("whatsapp_enabled") else None,
+            "store_name": prof.get("store_name"),
+        }
+    return {"product": result, "seller": seller_info, "is_favorite": is_fav}
 
 
-@router.delete("/suppliers/{sid}/products/{pid}")
-async def delete_supplier_product(sid: str, pid: str, user: dict = Depends(get_current_user)):
-    await _get_owned_supplier(sid, user)
-    await db.supplier_products.delete_one({"id": pid, "supplier_id": sid})
-    return {"message": "Efase."}
+@router.put("/products/{pid}")
+async def update_product(pid: str, data: ProductIn, user: dict = Depends(get_current_user)):
+    p = await db.products.find_one({"id": pid})
+    if not p:
+        raise HTTPException(status_code=404, detail="Pwodwi pa jwenn.")
+    if p["seller_id"] != user["id"] and user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Ou pa gen dwa modifye.")
+    if p["status"] == "sold":
+        raise HTTPException(status_code=400, detail="Pwodwi vann pa ka modifye. Restore l anvan.")
+    if data.quantity < 0:
+        raise HTTPException(status_code=400, detail="Kantite pa ka negatif.")
+    security.validate_images(data.images)
+    updates = data.model_dump()
+    updates["search_text"] = _build_search_text(data.title, data.description, data.subcategory, data.specs)
+    updates["images"] = updates["images"][:10]
+    updates["updated_at"] = now_iso()
+    if updates.get("status") not in ("active", "draft"):
+        updates["status"] = p["status"]
+    await db.products.update_one({"id": pid}, {"$set": updates})
+    updated = await db.products.find_one({"id": pid}, NO_ID)
+    return strip_private(updated, is_owner=True)
 
 
-# ---------------- Shipping services ----------------
-@router.post("/suppliers/{sid}/shipping-services")
-async def add_shipping_service(sid: str, data: ShippingServiceIn, user: dict = Depends(get_current_user)):
-    await _get_owned_supplier(sid, user)
-    if not data.name.strip():
-        raise HTTPException(status_code=400, detail="Antre non sèvis livrezon an.")
-    svc = {"id": str(uuid.uuid4()), "supplier_id": sid, **data.model_dump(), "created_at": now_iso()}
-    await db.supplier_shipping_services.insert_one(dict(svc))
-    return {k: v for k, v in svc.items() if k != "_id"}
+@router.delete("/products/{pid}")
+async def delete_product(pid: str, user: dict = Depends(get_current_user)):
+    p = await db.products.find_one({"id": pid})
+    if not p:
+        raise HTTPException(status_code=404, detail="Pwodwi pa jwenn.")
+    if p["seller_id"] != user["id"] and user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Ou pa gen dwa.")
+    await db.products.delete_one({"id": pid})
+    return {"message": "Pwodwi efase."}
 
 
-@router.get("/suppliers/{sid}/shipping-services")
-async def list_shipping_services(sid: str):
-    return await db.supplier_shipping_services.find({"supplier_id": sid}, NO_ID).sort("created_at", 1).to_list(50)
+@router.post("/products/{pid}/mark-sold")
+async def mark_sold(pid: str, user: dict = Depends(get_current_user)):
+    p = await db.products.find_one({"id": pid})
+    if not p or (p["seller_id"] != user["id"] and user.get("role") != "admin"):
+        raise HTTPException(status_code=403, detail="Ou pa gen dwa.")
+    await db.products.update_one({"id": pid}, {"$set": {"status": "sold", "sold_at": now_iso()}})
+    return {"message": "Pwodwi make kòm VANN."}
 
 
-@router.delete("/suppliers/{sid}/shipping-services/{svc_id}")
-async def delete_shipping_service(sid: str, svc_id: str, user: dict = Depends(get_current_user)):
-    await _get_owned_supplier(sid, user)
-    await db.supplier_shipping_services.delete_one({"id": svc_id, "supplier_id": sid})
-    return {"message": "Efase."}
+@router.post("/products/{pid}/restore")
+async def restore_product(pid: str, user: dict = Depends(get_current_user)):
+    p = await db.products.find_one({"id": pid})
+    if not p or (p["seller_id"] != user["id"] and user.get("role") != "admin"):
+        raise HTTPException(status_code=403, detail="Ou pa gen dwa.")
+    await db.products.update_one({"id": pid}, {"$set": {"status": "active"}})
+    return {"message": "Pwodwi restore."}
 
 
-# ---------------- Inquiries ----------------
-@router.post("/suppliers/{sid}/inquiries")
-async def create_inquiry(sid: str, data: SupplierInquiryIn, user: dict = Depends(get_current_user)):
-    if not (user.get("is_seller") or user.get("is_technician")):
-        raise HTTPException(status_code=403, detail="Ou dwe vandè oswa teknisyen pou kontakte yon founisè.")
-    # Only VERIFIED sellers/technicians may contact international suppliers —
-    # unverified accounts can still browse a supplier's products/profile, but
-    # the "contact" action itself is gated to protect suppliers from fraud.
-    is_verified_seller = False
-    is_verified_tech = False
-    if user.get("is_seller"):
-        sp = await db.seller_profiles.find_one({"user_id": user["id"]}, NO_ID)
-        is_verified_seller = bool(sp and sp.get("seller_verified"))
-    if user.get("is_technician"):
-        tp = await db.technician_profiles.find_one({"user_id": user["id"]}, NO_ID)
-        is_verified_tech = bool(tp and tp.get("technician_verified"))
-    if not (is_verified_seller or is_verified_tech):
-        raise HTTPException(status_code=403, detail="Ou dwe yon vandè oswa teknisyen VERIFYE pou kontakte yon founisè.")
-    s = await db.suppliers.find_one({"id": sid})
-    if not s or s.get("status") != "active":
-        raise HTTPException(status_code=404, detail="Founisè pa jwenn.")
-    if not data.product_requested.strip():
-        raise HTTPException(status_code=400, detail="Antre pwodwi w bezwen an.")
-    if data.related_request_id:
-        r = await db.part_requests.find_one({"id": data.related_request_id, "user_id": user["id"]})
-        if not r:
-            raise HTTPException(status_code=400, detail="Demann pyès sa a pa jwenn.")
-    inquiry = {
-        "id": str(uuid.uuid4()),
-        "supplier_id": sid,
-        "user_id": user["id"],
-        "username": user["username"],
-        "product_requested": data.product_requested,
-        "quantity": data.quantity,
-        "target_price": data.target_price,
-        "message": data.message,
-        "shipping_destination": data.shipping_destination,
-        "related_request_id": data.related_request_id,
-        "status": "open",
-        "created_at": now_iso(),
-    }
-    await db.supplier_inquiries.insert_one(dict(inquiry))
-    await create_notification(s["owner_id"], "supplier_inquiry", f"@{user['username']} voye yon demann sou '{data.product_requested}'", f"/suppliers/{sid}")
-    return {k: v for k, v in inquiry.items() if k != "_id"}
+@router.post("/favorites/{pid}")
+async def toggle_favorite(pid: str, user: dict = Depends(get_current_user)):
+    p = await db.products.find_one({"id": pid})
+    if not p:
+        raise HTTPException(status_code=404, detail="Pwodwi pa jwenn.")
+    existing = await db.favorites.find_one({"user_id": user["id"], "product_id": pid})
+    if existing:
+        await db.favorites.delete_one({"user_id": user["id"], "product_id": pid})
+        await db.products.update_one({"id": pid}, {"$inc": {"favorites_count": -1}})
+        return {"favorited": False}
+    await db.favorites.insert_one({"id": str(uuid.uuid4()), "user_id": user["id"], "product_id": pid, "created_at": now_iso()})
+    await db.products.update_one({"id": pid}, {"$inc": {"favorites_count": 1}})
+    if p["seller_id"] != user["id"]:
+        await create_notification(p["seller_id"], "favorite", f"Yon moun renmen '{p['title']}'", f"/product/{p['slug']}")
+    return {"favorited": True}
 
 
-@router.get("/suppliers/{sid}/inquiries")
-async def list_supplier_inquiries(sid: str, user: dict = Depends(get_current_user)):
-    await _get_owned_supplier(sid, user)
-    return await db.supplier_inquiries.find({"supplier_id": sid}, NO_ID).sort("created_at", -1).to_list(200)
-
-
-@router.get("/my-supplier-inquiries")
-async def my_inquiries(user: dict = Depends(get_current_user)):
-    return await db.supplier_inquiries.find({"user_id": user["id"]}, NO_ID).sort("created_at", -1).to_list(200)
+@router.get("/favorites")
+async def get_favorites(user: dict = Depends(get_current_user)):
+    favs = await db.favorites.find({"user_id": user["id"]}, NO_ID).to_list(500)
+    ids = [f["product_id"] for f in favs]
+    products = await db.products.find({"id": {"$in": ids}}, NO_ID).to_list(500)
+    for p in products:
+        p.pop("imei", None)
+        p["images"] = p.get("images", [])[:1]
+    return products
