@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from "react";
-import { useSearchParams } from "react-router-dom";
-import { SlidersHorizontal, X } from "lucide-react";
+import { useSearchParams, Link } from "react-router-dom";
+import { SlidersHorizontal, X, Search, ShieldCheck, MapPin } from "lucide-react";
 import api from "@/lib/api";
 import { useApp } from "@/contexts/AppContext";
 import { getCatName } from "@/i18n";
@@ -18,6 +18,11 @@ export default function Browse() {
   const { t, categories, locations, lang } = useApp();
   const [params, setParams] = useSearchParams();
   const [data, setData] = useState({ products: [], total: 0, pages: 1 });
+  const [technicians, setTechnicians] = useState([]);
+  // Local text-box state, separate from the URL param — lets the user type
+  // freely before submitting, and stays in sync if `q` changes from
+  // elsewhere (e.g. the header search, or the browser Back/Forward buttons).
+  const [qText, setQText] = useState("");
   const [loading, setLoading] = useState(true);
 
   const get = (k) => params.get(k) || "";
@@ -43,12 +48,37 @@ export default function Browse() {
       qs.set("limit", "20");
       const { data } = await api.get(`/products?${qs.toString()}`);
       setData(data);
+
+      // Product search only covers marketplace listings — a keyword like
+      // "technicien" has no matching product but should still surface
+      // relevant technicians, so a free-text search also checks the
+      // existing technician directory (GET /technicians?q=...).
+      const qVal = params.get("q");
+      if (qVal) {
+        try {
+          const techRes = await api.get(`/technicians?q=${encodeURIComponent(qVal)}&limit=6`);
+          setTechnicians(techRes.data.technicians || []);
+        } catch {
+          setTechnicians([]);
+        }
+      } else {
+        setTechnicians([]);
+      }
     } finally {
       setLoading(false);
     }
   }, [params]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Keep the on-page search box showing whatever the current URL's `q` is —
+  // covers the header search bringing us here, and Back/Forward navigation.
+  useEffect(() => { setQText(params.get("q") || ""); }, [params]);
+
+  const submitSearch = (e) => {
+    e.preventDefault();
+    setParam("q", qText.trim());
+  };
 
   const activeFilters = ["category", "subcategory", "department", "city", "condition", "verified_seller", "min_price", "max_price"].filter((k) => params.get(k));
 
@@ -138,10 +168,29 @@ export default function Browse() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 lg:px-6 py-6">
+      <form onSubmit={submitSearch} className="mb-4">
+        <div className="relative">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <input
+            data-testid="browse-search-input"
+            value={qText}
+            onChange={(e) => setQText(e.target.value)}
+            placeholder={t("searchPlaceholder")}
+            className="w-full h-11 pl-10 pr-20 rounded-full border border-border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+          />
+          <Button type="submit" size="sm" className="absolute right-1.5 top-1/2 -translate-y-1/2 h-8 rounded-full px-4" data-testid="browse-search-submit">
+            {t("search")}
+          </Button>
+        </div>
+      </form>
+
       <div className="flex items-center justify-between gap-3 mb-5">
         <div>
           <h1 className="font-display text-2xl font-bold">{cat ? getCatName(cat, lang) : t("search")}</h1>
-          <p className="text-sm text-muted-foreground">{data.total} {t("results")}</p>
+          <p className="text-sm text-muted-foreground">
+            {data.total} {t("results")}
+            {technicians.length > 0 && ` · ${technicians.length} teknisyen`}
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <Select value={get("sort") || "newest"} onValueChange={(v) => setParam("sort", v)}>
@@ -179,20 +228,47 @@ export default function Browse() {
             <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-4">
               {Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="aspect-[3/4] rounded-xl" />)}
             </div>
-          ) : data.products.length === 0 ? (
-            <div className="text-center py-20 text-muted-foreground" data-testid="no-results">{t("noProducts")}</div>
           ) : (
             <>
-              <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-4">
-                {data.products.map((p, i) => <ProductCard key={p.id} product={p} index={i} />)}
-              </div>
-              {data.pages > 1 && (
-                <div className="flex items-center justify-center gap-2 mt-8">
-                  <Button variant="outline" disabled={page <= 1} onClick={() => setParam("page", String(page - 1))} data-testid="prev-page">‹</Button>
-                  <span className="text-sm px-3">{page} / {data.pages}</span>
-                  <Button variant="outline" disabled={page >= data.pages} onClick={() => setParam("page", String(page + 1))} data-testid="next-page">›</Button>
+              {technicians.length > 0 && (
+                <div className="mb-6">
+                  <h2 className="text-sm font-semibold text-muted-foreground uppercase mb-3">Teknisyen ki matche</h2>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {technicians.map((tech) => (
+                      <Link key={tech.username} to={`/technician/${tech.username}`} data-testid={`browse-technician-${tech.username}`}
+                        className="bg-card border border-border rounded-xl p-4 hover:border-primary hover:shadow-md transition-all flex items-center gap-3">
+                        <div className="w-11 h-11 rounded-xl bg-primary text-white flex items-center justify-center text-base font-bold overflow-hidden shrink-0">
+                          {tech.avatar ? <img src={tech.avatar} alt="" className="w-full h-full object-cover" /> : tech.full_name?.[0]?.toUpperCase()}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1">
+                            <h3 className="font-semibold truncate text-sm">{tech.full_name}</h3>
+                            {tech.technician_verified && <ShieldCheck className="w-3.5 h-3.5 text-primary shrink-0" />}
+                          </div>
+                          <p className="text-xs text-muted-foreground flex items-center gap-1"><MapPin className="w-3 h-3" />{tech.city}, {tech.department}</p>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
                 </div>
               )}
+
+              {data.products.length === 0 && technicians.length === 0 ? (
+                <div className="text-center py-20 text-muted-foreground" data-testid="no-results">{t("noProducts")}</div>
+              ) : data.products.length > 0 ? (
+                <>
+                  <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-4">
+                    {data.products.map((p, i) => <ProductCard key={p.id} product={p} index={i} />)}
+                  </div>
+                  {data.pages > 1 && (
+                    <div className="flex items-center justify-center gap-2 mt-8">
+                      <Button variant="outline" disabled={page <= 1} onClick={() => setParam("page", String(page - 1))} data-testid="prev-page">‹</Button>
+                      <span className="text-sm px-3">{page} / {data.pages}</span>
+                      <Button variant="outline" disabled={page >= data.pages} onClick={() => setParam("page", String(page + 1))} data-testid="next-page">›</Button>
+                    </div>
+                  )}
+                </>
+              ) : null}
             </>
           )}
         </div>
