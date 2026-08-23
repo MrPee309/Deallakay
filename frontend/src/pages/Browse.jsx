@@ -26,6 +26,7 @@ export default function Browse() {
   const [data, setData] = useState({ products: [], total: 0, pages: 1 });
   const [technicians, setTechnicians] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
+  const [dealAlerts, setDealAlerts] = useState([]);
   // Local text-box state, separate from the URL param — lets the user type
   // freely before submitting, and stays in sync if `q` changes from
   // elsewhere (e.g. the header search, or the browser Back/Forward buttons).
@@ -76,17 +77,25 @@ export default function Browse() {
         // Search is global — everything on the site that could match, not
         // just products. Only the per-request limit exists (pagination),
         // not an artificial cap on WHAT is searched.
-        const [techRes, supRes] = await Promise.all([
+        const [techRes, supRes, alertRes] = await Promise.all([
           api.get(`/technicians?${techQs}limit=24`).catch(() => ({ data: { technicians: [] } })),
           canSeeSuppliers
             ? api.get(`/suppliers?${supQs}limit=24`).catch(() => ({ data: { suppliers: [] } }))
             : Promise.resolve({ data: { suppliers: [] } }),
+          // Demand/Offer posts live in the mobile app's Deal Alerts system
+          // (deal_alerts collection) — same role-based visibility as
+          // suppliers: only sellers/technicians/verified suppliers/admin.
+          canSeeSuppliers
+            ? api.get(`/alerts/discover?q=${encodeURIComponent(qVal)}`).catch(() => ({ data: [] }))
+            : Promise.resolve({ data: [] }),
         ]);
         setTechnicians(techRes.data.technicians || []);
         setSuppliers(supRes.data.suppliers || []);
+        setDealAlerts(alertRes.data || []);
       } else {
         setTechnicians([]);
         setSuppliers([]);
+        setDealAlerts([]);
       }
     } finally {
       setLoading(false);
@@ -298,7 +307,32 @@ export default function Browse() {
                 </div>
               )}
 
-              {data.products.length === 0 && technicians.length === 0 && suppliers.length === 0 ? (
+              {dealAlerts.length > 0 && (
+                <div className="mb-6">
+                  <h2 className="text-sm font-semibold text-muted-foreground uppercase mb-3">Demann & Òf</h2>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {dealAlerts.map((a) => (
+                      <div key={a.id} data-testid={`browse-deal-alert-${a.id}`}
+                        className="bg-card border border-border rounded-xl p-4">
+                        <div className="flex items-center justify-between gap-2 mb-2">
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${a.alert_type === "OFFER" ? "bg-secondary text-secondary-foreground" : "bg-primary text-primary-foreground"}`}>
+                            {a.alert_type === "OFFER" ? "ÒF" : "DEMANN"}
+                          </span>
+                          {(a.price != null || a.max_price != null) && (
+                            <span className="text-sm font-bold text-primary">${a.price ?? a.max_price}</span>
+                          )}
+                        </div>
+                        <h3 className="font-semibold text-sm truncate">{a.keyword || a.category}</h3>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {[a.city, a.department].filter(Boolean).join(", ") || "Tout Ayiti"} · {a.creator_name}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {data.products.length === 0 && technicians.length === 0 && suppliers.length === 0 && dealAlerts.length === 0 ? (
                 <div className="text-center py-20 text-muted-foreground" data-testid="no-results">{t("noProducts")}</div>
               ) : data.products.length > 0 ? (
                 <>
