@@ -7,6 +7,7 @@ see the entire DEMAND + OFFER pool. Reuses the existing product/notification
 system — no new database beyond the existing deal_alerts collection, extended
 with an alert_type field and a few OFFER-relevant fields.
 """
+import re
 import uuid
 from typing import Optional
 
@@ -98,6 +99,7 @@ async def my_alerts(user: dict = Depends(get_current_user)):
 
 @router.get("/alerts/discover")
 async def discover_alerts(
+    q: Optional[str] = None,
     category: Optional[str] = None,
     department: Optional[str] = None,
     alert_type: Optional[str] = None,
@@ -121,6 +123,9 @@ async def discover_alerts(
         query["category"] = category
     if department:
         query["department"] = department
+    if q:
+        rx = {"$regex": re.escape(q), "$options": "i"}
+        query["$or"] = [{"keyword": rx}, {"description": rx}, {"category": rx}, {"brand": rx}, {"model": rx}, {"city": rx}, {"department": rx}]
 
     # Technicians/sellers (not verified suppliers/admin) get a lightly relevance-
     # scoped feed via the optional category/department filters above — full
