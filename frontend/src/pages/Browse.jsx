@@ -3,6 +3,7 @@ import { useSearchParams, Link } from "react-router-dom";
 import { SlidersHorizontal, X, Search, ShieldCheck, MapPin } from "lucide-react";
 import api from "@/lib/api";
 import { useApp } from "@/contexts/AppContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { getCatName } from "@/i18n";
 import ProductCard from "@/components/ProductCard";
 import { Button } from "@/components/ui/button";
@@ -16,9 +17,15 @@ const CONDITIONS = ["New", "Like New", "Good", "Fair", "Used", "For Parts / Repa
 
 export default function Browse() {
   const { t, categories, locations, lang } = useApp();
+  const { user } = useAuth();
+  // Suppliers are a B2B directory meant for sellers/technicians sourcing
+  // inventory, not general shoppers — kept out of search results for
+  // everyone else, logged in or not.
+  const canSeeSuppliers = !!(user && (user.is_seller || user.is_technician));
   const [params, setParams] = useSearchParams();
   const [data, setData] = useState({ products: [], total: 0, pages: 1 });
   const [technicians, setTechnicians] = useState([]);
+  const [suppliers, setSuppliers] = useState([]);
   // Local text-box state, separate from the URL param — lets the user type
   // freely before submitting, and stays in sync if `q` changes from
   // elsewhere (e.g. the header search, or the browser Back/Forward buttons).
@@ -55,28 +62,36 @@ export default function Browse() {
       // existing technician directory (GET /technicians?q=...).
       const qVal = params.get("q");
       if (qVal) {
-        try {
-          // A generic word for "technician" itself (in any of the site's
-          // languages) won't literally appear inside a technician's own
-          // name/bio/specialty text, so a plain substring match against it
-          // finds nothing even though technicians clearly exist — treat
-          // those words as "show the technician directory" instead of a
-          // keyword filter.
-          const GENERIC_TECHNICIAN_WORDS = ["teknisyen", "technicien", "technician", "teknisyèn"];
-          const isGenericTechWord = GENERIC_TECHNICIAN_WORDS.includes(qVal.trim().toLowerCase());
-          const techQs = isGenericTechWord ? "" : `q=${encodeURIComponent(qVal)}&`;
-          const techRes = await api.get(`/technicians?${techQs}limit=6`);
-          setTechnicians(techRes.data.technicians || []);
-        } catch {
-          setTechnicians([]);
-        }
+        // A generic category word ("teknisyen", "founisè"...) won't literally
+        // appear inside that entity's own name/bio/description text, so a
+        // plain substring match against it finds nothing even though matches
+        // clearly exist — treat those words as "show the whole directory"
+        // instead of a keyword filter.
+        const GENERIC_TECHNICIAN_WORDS = ["teknisyen", "technicien", "technician", "teknisyèn"];
+        const GENERIC_SUPPLIER_WORDS = ["founisè", "founise", "fournisseur", "supplier"];
+        const qLower = qVal.trim().toLowerCase();
+        const techQs = GENERIC_TECHNICIAN_WORDS.includes(qLower) ? "" : `q=${encodeURIComponent(qVal)}&`;
+        const supQs = GENERIC_SUPPLIER_WORDS.includes(qLower) ? "" : `q=${encodeURIComponent(qVal)}&`;
+
+        // Search is global — everything on the site that could match, not
+        // just products. Only the per-request limit exists (pagination),
+        // not an artificial cap on WHAT is searched.
+        const [techRes, supRes] = await Promise.all([
+          api.get(`/technicians?${techQs}limit=24`).catch(() => ({ data: { technicians: [] } })),
+          canSeeSuppliers
+            ? api.get(`/suppliers?${supQs}limit=24`).catch(() => ({ data: { suppliers: [] } }))
+            : Promise.resolve({ data: { suppliers: [] } }),
+        ]);
+        setTechnicians(techRes.data.technicians || []);
+        setSuppliers(supRes.data.suppliers || []);
       } else {
         setTechnicians([]);
+        setSuppliers([]);
       }
     } finally {
       setLoading(false);
     }
-  }, [params]);
+  }, [params, canSeeSuppliers]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -199,6 +214,7 @@ export default function Browse() {
           <p className="text-sm text-muted-foreground">
             {data.total} {t("results")}
             {technicians.length > 0 && ` · ${technicians.length} teknisyen`}
+            {suppliers.length > 0 && ` · ${suppliers.length} founisè`}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -262,7 +278,27 @@ export default function Browse() {
                 </div>
               )}
 
-              {data.products.length === 0 && technicians.length === 0 ? (
+              {suppliers.length > 0 && (
+                <div className="mb-6">
+                  <h2 className="text-sm font-semibold text-muted-foreground uppercase mb-3">Founisè ki matche</h2>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {suppliers.map((s) => (
+                      <Link key={s.id} to={`/suppliers/${s.id}`} data-testid={`browse-supplier-${s.id}`}
+                        className="bg-card border border-border rounded-xl p-4 hover:border-primary hover:shadow-md transition-all flex items-center gap-3">
+                        <div className="w-11 h-11 rounded-xl bg-primary text-white flex items-center justify-center text-base font-bold overflow-hidden shrink-0">
+                          {s.logo ? <img src={s.logo} alt="" className="w-full h-full object-cover" /> : s.company_name?.[0]?.toUpperCase()}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <h3 className="font-semibold truncate text-sm">{s.company_name}</h3>
+                          <p className="text-xs text-muted-foreground truncate">{s.country}</p>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {data.products.length === 0 && technicians.length === 0 && suppliers.length === 0 ? (
                 <div className="text-center py-20 text-muted-foreground" data-testid="no-results">{t("noProducts")}</div>
               ) : data.products.length > 0 ? (
                 <>
