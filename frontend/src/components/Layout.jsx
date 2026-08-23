@@ -1,7 +1,6 @@
 import React from "react";
 import { Outlet, Navigate, useLocation } from "react-router-dom";
 import Header from "./Header";
-import MobileNav from "./MobileNav";
 import Footer from "./Footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { Loader2 } from "lucide-react";
@@ -10,11 +9,10 @@ export function Layout({ hideFooter }) {
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <Header />
-      <main className="flex-1 pb-20 md:pb-0">
+      <main className="flex-1">
         <Outlet />
       </main>
       {!hideFooter && <Footer />}
-      <MobileNav />
     </div>
   );
 }
