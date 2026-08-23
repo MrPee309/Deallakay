@@ -172,3 +172,44 @@ async def delete_alert(aid: str, user: dict = Depends(get_current_user)):
         raise HTTPException(status_code=404, detail="Alèt pa jwenn.")
     await db.deal_alerts.delete_one({"id": aid})
     return {"message": "Alèt efase."}
+
+
+@router.post("/alerts/{aid}/contact")
+async def contact_alert_creator(aid: str, user: dict = Depends(get_current_user)):
+    """Starts (or reuses) a conversation with an alert's creator — mirrors
+    the existing technician-contact pattern (same `conversations` collection,
+    same Messenger screens, just no product attached). Deal Alerts aren't
+    tied to a marketplace product, so the generic POST /conversations
+    endpoint (which requires product_id) doesn't apply here."""
+    alert = await db.deal_alerts.find_one({"id": aid}, NO_ID)
+    if not alert or not alert.get("active"):
+        raise HTTPException(status_code=404, detail="Alèt pa jwenn.")
+    if alert["user_id"] == user["id"]:
+        raise HTTPException(status_code=400, detail="Ou pa ka voye mesaj ba tèt ou.")
+    creator = await db.users.find_one({"id": alert["user_id"]}, NO_ID)
+    if not creator:
+        raise HTTPException(status_code=404, detail="Itilizatè pa jwenn.")
+
+    existing = await db.conversations.find_one(
+        {"seller_id": alert["user_id"], "buyer_id": user["id"], "product_id": None}, NO_ID
+    )
+    if existing:
+        return existing
+
+    subject = alert.get("keyword") or alert.get("category") or "Alèt"
+    label = "Òf" if alert.get("alert_type") == "OFFER" else "Demann"
+    conv = {
+        "id": str(uuid.uuid4()),
+        "product_id": None,
+        "product_title": f"{label}: {subject}",
+        "product_image": creator.get("avatar", ""),
+        "buyer_id": user["id"],
+        "buyer_username": user["username"],
+        "seller_id": alert["user_id"],
+        "seller_username": creator["username"],
+        "last_message": "",
+        "created_at": now_iso(),
+        "updated_at": now_iso(),
+    }
+    await db.conversations.insert_one(dict(conv))
+    return {k: v for k, v in conv.items() if k != "_id"}
