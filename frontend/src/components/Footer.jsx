@@ -5,13 +5,11 @@ import Logo from "./Logo";
 import { useApp } from "@/contexts/AppContext";
 import { getCatName } from "@/i18n";
 
-// TODO: this URL is tied to one specific EAS build — replace it whenever a
-// new Android build is produced (`eas build --platform android`), since
-// each build gets its own build page. Linking to the build PAGE (not the raw
-// "artifacts" URL) — that direct link intermittently serves a .json
-// metadata file instead of the .apk depending on how the browser requests
-// it; the build page's own "Download" button is reliable.
-const ANDROID_APK_URL = "https://expo.dev/accounts/pittcode/projects/frontend/builds/d11adaa2-776f-4e6c-880b-f4b53f8bf4e6";
+// Hosted on Google Drive (shared "Anyone with the link") — the Expo build
+// page/artifact URL isn't reliably public (requires the Expo account owner
+// to be signed in, and the raw artifact link can expire). Update this ID
+// whenever a new APK is uploaded.
+const ANDROID_APK_URL = "https://drive.google.com/uc?export=download&id=1gsRuiEBRfOSpo7jK5MvVk8113LZxFR_1";
 
 export default function Footer() {
   const { categories, lang, branding } = useApp();
@@ -26,7 +24,7 @@ export default function Footer() {
           <Smartphone className="w-8 h-8 shrink-0" />
           <div className="flex-1">
             <p className="font-display font-semibold">Aplikasyon Mobil DealLakay Alert (Android)</p>
-            <p className="text-sm opacity-90">Tape la a, epi tape bouton "Download" ki parèt la — pou moun k ap ede nou teste.</p>
+            <p className="text-sm opacity-90">Tape la a pou telechaje. Si Google Drive montre yon avètisman, tape "Download anyway" — sa nòmal pou gwo fichye.</p>
           </div>
         </a>
       </div>
