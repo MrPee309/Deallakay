@@ -228,3 +228,63 @@ async def contact_alert_creator(aid: str, user: dict = Depends(get_current_user)
     }
     await db.conversations.insert_one(dict(conv))
     return {k: v for k, v in conv.items() if k != "_id"}
+
+
+class AlertResponseIn(BaseModel):
+    message: str
+    price: Optional[float] = None
+    quantity: Optional[int] = None
+
+
+@router.post("/alerts/{aid}/respond")
+async def respond_to_demand(aid: str, data: AlertResponseIn, user: dict = Depends(get_current_user)):
+    """A structured response to someone else's DEMAND — distinct from just
+    starting a Messenger chat: it's tied to the specific alert, notifies the
+    requester through the existing notification system, and the requester
+    can see every response received on their own Alert Details screen."""
+    alert = await db.deal_alerts.find_one({"id": aid}, NO_ID)
+    if not alert or not alert.get("active"):
+        raise HTTPException(status_code=404, detail="Alèt pa jwenn.")
+    if alert.get("alert_type") != "DEMAND":
+        raise HTTPException(status_code=400, detail="Ou ka sèlman reponn a yon Demann.")
+    if alert["user_id"] == user["id"]:
+        raise HTTPException(status_code=400, detail="Ou pa ka reponn a pwòp demann ou.")
+    if not (user.get("is_technician") or user.get("is_seller") or await _is_verified_supplier(user["id"])):
+        raise HTTPException(status_code=403, detail="Sèlman teknisyen, vandè, oswa founisè ka reponn a yon demann.")
+    if not data.message.strip():
+        raise HTTPException(status_code=400, detail="Mete yon mesaj pou repons lan.")
+
+    response = {
+        "id": str(uuid.uuid4()),
+        "alert_id": aid,
+        "responder_id": user["id"],
+        "responder_username": user["username"],
+        "responder_name": user.get("full_name", user["username"]),
+        "message": data.message.strip(),
+        "price": data.price,
+        "quantity": data.quantity,
+        "created_at": now_iso(),
+    }
+    await db.alert_responses.insert_one(dict(response))
+
+    subject = alert.get("keyword") or alert.get("category") or "demann ou"
+    await create_notification(
+        alert["user_id"],
+        "alert_response",
+        f"{user.get('full_name', user['username'])} reponn a demann ou: {subject}",
+        # No website route exists for Deal Alerts yet (mobile-app-only
+        # feature) — leave link empty rather than pointing somewhere wrong.
+        "",
+    )
+
+    return {k: v for k, v in response.items() if k != "_id"}
+
+
+@router.get("/alerts/{aid}/responses")
+async def get_alert_responses(aid: str, user: dict = Depends(get_current_user)):
+    """Only the alert's own creator can see who responded — private to them,
+    same as any other DealLakay inbox-style data."""
+    alert = await db.deal_alerts.find_one({"id": aid}, NO_ID)
+    if not alert or alert["user_id"] != user["id"]:
+        raise HTTPException(status_code=404, detail="Alèt pa jwenn.")
+    return await db.alert_responses.find({"alert_id": aid}, NO_ID).sort("created_at", -1).to_list(100)
