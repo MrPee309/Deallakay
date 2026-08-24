@@ -9,7 +9,7 @@ import { getCatName } from "@/i18n";
 // page/artifact URL isn't reliably public (requires the Expo account owner
 // to be signed in, and the raw artifact link can expire). Update this ID
 // whenever a new APK is uploaded.
-const ANDROID_APK_URL = "https://drive.google.com/uc?export=download&id=1eHhC42iycoBt9lhZnI1WlfVgUBl2ukd1";
+const ANDROID_APK_URL = const ANDROID_APK_URL = "https://drive.google.com/uc?export=download&id=1eHhC42iycoBt9lhZnI1WlfVgUBl2ukd1";
 
 export default function Footer() {
   const { categories, lang, branding } = useApp();
