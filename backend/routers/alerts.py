@@ -38,7 +38,7 @@ class AlertIn(BaseModel):
 
 
 async def _is_verified_supplier(user_id: str) -> bool:
-    s = await db.suppliers.find_one({"user_id": user_id, "status": "active"})
+    s = await db.suppliers.find_one({"owner_id": user_id, "status": "active"})
     return s is not None
 
 
@@ -58,11 +58,18 @@ async def create_alert(data: AlertIn, user: dict = Depends(get_current_user)):
     if alert_type not in ALERT_TYPES:
         raise HTTPException(status_code=400, detail="Kalite alèt pa valab.")
 
-    # Business rule: only technicians/sellers may post an OFFER ("I have this
+    is_verified_supplier = await _is_verified_supplier(user["id"])
+
+    # Final business rule: a verified Supplier creates OFFERS only, never a
+    # DEMAND — they're an inventory source, not a buyer in this ecosystem.
+    if is_verified_supplier and alert_type == "DEMAND":
+        raise HTTPException(status_code=403, detail="Founisè ka sèlman poste Òf, pa Demann.")
+
+    # Technicians/sellers/verified suppliers may post an OFFER ("I have this
     # available"). A basic client may only ever post a DEMAND. Enforced here,
     # server-side — never trust a frontend-submitted alert_type/role.
-    if alert_type == "OFFER" and not (user.get("is_technician") or user.get("is_seller")):
-        raise HTTPException(status_code=403, detail="Sèlman teknisyen ak vandè ka poste yon Òf.")
+    if alert_type == "OFFER" and not (user.get("is_technician") or user.get("is_seller") or is_verified_supplier):
+        raise HTTPException(status_code=403, detail="Sèlman teknisyen, vandè, oswa founisè ka poste yon Òf.")
 
     if not any([data.keyword, data.category, data.department, data.max_price, data.price]):
         raise HTTPException(status_code=400, detail="Mete omwen yon kritè pou alèt la.")
@@ -151,8 +158,11 @@ async def update_alert(aid: str, data: AlertIn, user: dict = Depends(get_current
     if not a or a["user_id"] != user["id"]:
         raise HTTPException(status_code=404, detail="Alèt pa jwenn.")
     alert_type = (data.alert_type or a.get("alert_type", "DEMAND")).upper()
-    if alert_type == "OFFER" and not (user.get("is_technician") or user.get("is_seller")):
-        raise HTTPException(status_code=403, detail="Sèlman teknisyen ak vandè ka poste yon Òf.")
+    is_verified_supplier = await _is_verified_supplier(user["id"])
+    if is_verified_supplier and alert_type == "DEMAND":
+        raise HTTPException(status_code=403, detail="Founisè ka sèlman poste Òf, pa Demann.")
+    if alert_type == "OFFER" and not (user.get("is_technician") or user.get("is_seller") or is_verified_supplier):
+        raise HTTPException(status_code=403, detail="Sèlman teknisyen, vandè, oswa founisè ka poste yon Òf.")
     updates = data.model_dump()
     updates["alert_type"] = alert_type
     updates["keyword"] = (updates.get("keyword") or "").strip() or None
