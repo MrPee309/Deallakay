@@ -32,43 +32,33 @@ def _is_online(user_id: str) -> bool:
     show a live online/offline state, never a fabricated last-seen time."""
     return bool(manager.active.get(user_id))
 
-
-# ---------------- User search (for starting a conversation) ----------------
-@router.get("/users/search")
-async def search_users(q: str, user: dict = Depends(get_current_user)):
-    """Public-safe user search for Messenger's "search a person" — deliberately
-    separate from admin's GET /users, which returns the full account record.
-    Only fields safe to show to any other logged-in user are returned."""
-    if not q or len(q.strip()) < 2:
-        return []
-    rx = {"$regex": re.escape(q.strip()), "$options": "i"}
-    results = await db.users.find(
-        {"$and": [{"id": {"$ne": user["id"]}}, {"$or": [{"username": rx}, {"full_name": rx}]}]},
-        NO_ID,
-    ).to_list(20)
-    out = []
-    for u in results:
-        role = "Teknisyen & Vandè" if (u.get("is_technician") and u.get("is_seller")) else (
-            "Teknisyen" if u.get("is_technician") else ("Vandè" if u.get("is_seller") else "Kliyan")
-        )
-        out.append({
-            "id": u["id"], "username": u["username"], "full_name": u.get("full_name", ""),
-            "avatar": u.get("avatar", ""), "role": role, "online": _is_online(u["id"]),
-        })
-    return out
-
-
 @router.post("/conversations/with/{other_user_id}")
 async def start_direct_conversation(other_user_id: str, user: dict = Depends(get_current_user)):
     """Starts (or reuses) a conversation directly with another user, with no
-    product attached — for Messenger's search results and "Nouvo Mesaj",
-    where the person isn't necessarily contacting about a specific listing.
-    Reuses the same `conversations` collection as product-based chats."""
+    product attached. Reuses the same `conversations` collection as
+    product-based chats.
+
+    IMPORTANT — Messenger is not a general user directory: this must only
+    succeed when a legitimate DealLakay relationship already exists (viewing
+    a technician/seller/supplier's profile, or a Deal Alert response), never
+    an arbitrary stranger. There is deliberately no "search all users"
+    endpoint feeding this — only Technicians/Suppliers/Alert Details/
+    Discover screens, which already establish that relationship."""
     if other_user_id == user["id"]:
         raise HTTPException(status_code=400, detail="Ou pa ka voye mesaj ba tèt ou.")
     other = await db.users.find_one({"id": other_user_id}, NO_ID)
     if not other:
         raise HTTPException(status_code=404, detail="Itilizatè pa jwenn.")
+
+    is_biz_profile = bool(other.get("is_technician") or other.get("is_seller"))
+    has_supplier_profile = await db.suppliers.find_one({"owner_id": other_user_id, "status": "active"}) is not None
+    has_alert_relationship = await db.alert_responses.find_one({
+        "$or": [
+            {"responder_id": user["id"]}, {"responder_id": other_user_id},
+        ],
+    }) is not None
+    if not (is_biz_profile or has_supplier_profile or has_alert_relationship):
+        raise HTTPException(status_code=403, detail="Pa gen relasyon DealLakay ki otorize konvèsasyon sa a.")
 
     existing = await db.conversations.find_one({
         "product_id": None,
