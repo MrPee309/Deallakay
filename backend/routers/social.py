@@ -5,6 +5,7 @@ reviews, reports, and notifications.
 Moved out of server.py during Phase 2A modularization. Behavior, paths, request
 formats, and response formats are unchanged from before the move.
 """
+import re
 import uuid
 
 from fastapi import APIRouter, HTTPException, Depends, WebSocket, WebSocketDisconnect, Query
@@ -22,6 +23,78 @@ class ConversationIn(BaseModel):
 
 class MessageIn(BaseModel):
     content: str
+
+
+def _is_online(user_id: str) -> bool:
+    """Real presence — true only if this user has at least one currently-open
+    WebSocket connection (see shared.py's ConnectionManager). No "last seen"
+    timestamp is tracked anywhere in the existing system, so we only ever
+    show a live online/offline state, never a fabricated last-seen time."""
+    return bool(manager.active.get(user_id))
+
+
+# ---------------- User search (for starting a conversation) ----------------
+@router.get("/users/search")
+async def search_users(q: str, user: dict = Depends(get_current_user)):
+    """Public-safe user search for Messenger's "search a person" — deliberately
+    separate from admin's GET /users, which returns the full account record.
+    Only fields safe to show to any other logged-in user are returned."""
+    if not q or len(q.strip()) < 2:
+        return []
+    rx = {"$regex": re.escape(q.strip()), "$options": "i"}
+    results = await db.users.find(
+        {"$and": [{"id": {"$ne": user["id"]}}, {"$or": [{"username": rx}, {"full_name": rx}]}]},
+        NO_ID,
+    ).to_list(20)
+    out = []
+    for u in results:
+        role = "Teknisyen & Vandè" if (u.get("is_technician") and u.get("is_seller")) else (
+            "Teknisyen" if u.get("is_technician") else ("Vandè" if u.get("is_seller") else "Kliyan")
+        )
+        out.append({
+            "id": u["id"], "username": u["username"], "full_name": u.get("full_name", ""),
+            "avatar": u.get("avatar", ""), "role": role, "online": _is_online(u["id"]),
+        })
+    return out
+
+
+@router.post("/conversations/with/{other_user_id}")
+async def start_direct_conversation(other_user_id: str, user: dict = Depends(get_current_user)):
+    """Starts (or reuses) a conversation directly with another user, with no
+    product attached — for Messenger's search results and "Nouvo Mesaj",
+    where the person isn't necessarily contacting about a specific listing.
+    Reuses the same `conversations` collection as product-based chats."""
+    if other_user_id == user["id"]:
+        raise HTTPException(status_code=400, detail="Ou pa ka voye mesaj ba tèt ou.")
+    other = await db.users.find_one({"id": other_user_id}, NO_ID)
+    if not other:
+        raise HTTPException(status_code=404, detail="Itilizatè pa jwenn.")
+
+    existing = await db.conversations.find_one({
+        "product_id": None,
+        "$or": [
+            {"buyer_id": user["id"], "seller_id": other_user_id},
+            {"buyer_id": other_user_id, "seller_id": user["id"]},
+        ],
+    }, NO_ID)
+    if existing:
+        return existing
+
+    conv = {
+        "id": str(uuid.uuid4()),
+        "product_id": None,
+        "product_title": other.get("full_name", other["username"]),
+        "product_image": other.get("avatar", ""),
+        "buyer_id": user["id"],
+        "buyer_username": user["username"],
+        "seller_id": other_user_id,
+        "seller_username": other["username"],
+        "last_message": "",
+        "created_at": now_iso(),
+        "updated_at": now_iso(),
+    }
+    await db.conversations.insert_one(dict(conv))
+    return conv
 
 
 class ReviewIn(BaseModel):
@@ -73,7 +146,7 @@ async def list_conversations(user: dict = Depends(get_current_user)):
         c["unread"] = await db.messages.count_documents({"conversation_id": c["id"], "sender_id": {"$ne": user["id"]}, "read": False})
         other_id = c["seller_id"] if c["buyer_id"] == user["id"] else c["buyer_id"]
         other = await db.users.find_one({"id": other_id}, NO_ID)
-        c["other_user"] = {"username": other["username"], "avatar": other.get("avatar", "")} if other else {}
+        c["other_user"] = {"username": other["username"], "avatar": other.get("avatar", ""), "online": _is_online(other_id)} if other else {}
     return convs
 
 
@@ -84,6 +157,8 @@ async def get_messages(cid: str, user: dict = Depends(get_current_user)):
         raise HTTPException(status_code=403, detail="Aksè refize.")
     await db.messages.update_many({"conversation_id": cid, "sender_id": {"$ne": user["id"]}}, {"$set": {"read": True}})
     msgs = await db.messages.find({"conversation_id": cid}, NO_ID).sort("created_at", 1).to_list(1000)
+    other_id = conv["seller_id"] if conv["buyer_id"] == user["id"] else conv["buyer_id"]
+    conv["other_user_online"] = _is_online(other_id)
     return {"conversation": conv, "messages": msgs}
 
 
