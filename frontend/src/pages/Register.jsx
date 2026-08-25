@@ -12,6 +12,18 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import GoogleAuthButton from "@/components/GoogleAuthButton";
 
+// Same country/phone-code list used in the DealLakay Alert mobile app —
+// Ayiti listed first since that's the primary user base, but the site
+// welcomes registrations from the diaspora too.
+const COUNTRY_PHONE = [
+  { name: "Ayiti", code: "+509", digits: [8, 8] },
+  { name: "United States", code: "+1", digits: [10, 10] },
+  { name: "Canada", code: "+1", digits: [10, 10] },
+  { name: "Dominican Republic", code: "+1", digits: [10, 10] },
+  { name: "France", code: "+33", digits: [9, 9] },
+  { name: "Other", code: "", digits: [7, 15] },
+];
+
 export default function Register() {
   const { t, locations } = useApp();
   const nav = useNavigate();
@@ -21,14 +33,21 @@ export default function Register() {
 
   const set = (k, v) => setF((s) => ({ ...s, [k]: v }));
   const dep = locations.find((d) => d.name === f.department);
+  const phoneCountry = COUNTRY_PHONE.find((c) => c.name === f.country) || COUNTRY_PHONE[0];
 
   const submit = async (e) => {
     e.preventDefault();
     if (!f.accept_terms) return toast.error("Aksepte Terms & Conditions.");
     if (f.password !== f.confirm_password) return toast.error("Modpas yo pa menm.");
+    const digits = f.phone.replace(/\D/g, "");
+    const [lo, hi] = phoneCountry.digits;
+    if (digits.length < lo || digits.length > hi) {
+      return toast.error(`Nimewo telefòn pa valab pou ${phoneCountry.name} — li dwe gen ${lo === hi ? lo : `${lo}-${hi}`} chif.`);
+    }
     setLoading(true);
     try {
-      const { data } = await api.post("/auth/register", f);
+      const payload = { ...f, phone: `${phoneCountry.code}${digits}` };
+      const { data } = await api.post("/auth/register", payload);
       setDone(data);
       toast.success("Kont kreye!");
     } catch (e) {
@@ -68,16 +87,38 @@ export default function Register() {
             <Field label={t("username")} v={f.username} onC={(v) => set("username", v)} testid="reg-username" required />
           </div>
           <Field label={t("email")} type="email" v={f.email} onC={(v) => set("email", v)} testid="reg-email" required />
-          <Field label={t("phone")} v={f.phone} onC={(v) => set("phone", v)} testid="reg-phone" required placeholder="+509..." />
+
+          <div>
+            <Label>{t("country")}<span className="text-red-500 ml-0.5">*</span></Label>
+            <Select value={f.country} onValueChange={(v) => set("country", v)}>
+              <SelectTrigger className="mt-1.5 h-11" data-testid="reg-country"><SelectValue /></SelectTrigger>
+              <SelectContent>{COUNTRY_PHONE.map((c) => <SelectItem key={c.name} value={c.name}>{c.code ? `${c.name} (${c.code})` : c.name}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <Label>{t("phone")}<span className="text-red-500 ml-0.5">*</span></Label>
+            <div className="flex gap-2 mt-1.5">
+              {phoneCountry.code && (
+                <span className="h-11 px-3 rounded-md border border-input bg-muted flex items-center text-sm font-medium shrink-0">{phoneCountry.code}</span>
+              )}
+              <Input
+                value={f.phone}
+                onChange={(e) => set("phone", e.target.value)}
+                required
+                data-testid="reg-phone"
+                placeholder={phoneCountry.digits[0] === phoneCountry.digits[1] ? `${phoneCountry.digits[0]} chif` : "nimewo w"}
+                className="h-11"
+                inputMode="tel"
+              />
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Field label={t("password")} type="password" v={f.password} onC={(v) => set("password", v)} testid="reg-password" required />
             <Field label={t("confirmPassword")} type="password" v={f.confirm_password} onC={(v) => set("confirm_password", v)} testid="reg-confirm" required />
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div>
-              <Label>{t("country")}</Label>
-              <Input value={f.country} disabled className="mt-1.5 h-11" />
-            </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <Label>{t("department")}<span className="text-red-500 ml-0.5">*</span></Label>
               <Select value={f.department} onValueChange={(v) => { set("department", v); set("city", ""); }}>
