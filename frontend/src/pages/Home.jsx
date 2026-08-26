@@ -6,6 +6,7 @@ import api from "@/lib/api";
 import { useApp } from "@/contexts/AppContext";
 import { getCatName } from "@/i18n";
 import ProductCard from "@/components/ProductCard";
+import HeroSlider from "@/components/HeroSlider";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -44,33 +45,37 @@ export default function Home() {
       {/* Hero */}
       <section className="relative hero-grid border-b border-border overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 lg:px-6 py-14 md:py-20">
-          <div className="max-w-3xl">
-            <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary bg-primary/10 px-3 py-1 rounded-full mb-5">
-              <Tag className="w-3.5 h-3.5" /> Marketplace teknoloji ann Ayiti
-            </span>
-            <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl font-800 tracking-tight leading-[1.05]" style={{ fontWeight: 800 }}>
-              Jwenn sa w bezwen.<br /><span className="text-primary">Vann sa w pa bezwen.</span>
-            </h1>
-            <p className="text-base md:text-lg text-muted-foreground mt-5 max-w-xl">{t("heroSubtitle")}</p>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-8 items-center">
+            <div className="max-w-3xl">
+              <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary bg-primary/10 px-3 py-1 rounded-full mb-5">
+                <Tag className="w-3.5 h-3.5" /> Marketplace teknoloji ann Ayiti
+              </span>
+              <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl font-800 tracking-tight leading-[1.05]" style={{ fontWeight: 800 }}>
+                Jwenn sa w bezwen.<br /><span className="text-primary">Vann sa w pa bezwen.</span>
+              </h1>
+              <p className="text-base md:text-lg text-muted-foreground mt-5 max-w-xl">{t("heroSubtitle")}</p>
 
-            <form onSubmit={submit} className="mt-8 flex flex-col sm:flex-row gap-2 max-w-2xl">
-              <div className="relative flex-1">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                <input
-                  data-testid="hero-search-input"
-                  value={q}
-                  onChange={(e) => setQ(e.target.value)}
-                  placeholder={t("searchPlaceholder")}
-                  className="w-full h-14 pl-12 pr-4 rounded-xl border border-border bg-white shadow-sm text-base focus:outline-none focus:ring-2 focus:ring-primary/40"
-                />
-              </div>
-              <Button data-testid="hero-search-btn" type="submit" className="h-14 px-8 rounded-xl bg-primary text-base font-semibold active:scale-95 transition-transform">
-                {t("search")}
-              </Button>
-              <Button data-testid="hero-sell-btn" type="button" onClick={() => nav("/sell")} className="h-14 px-6 rounded-xl bg-secondary text-secondary-foreground hover:bg-secondary/90 text-base font-semibold active:scale-95 transition-transform">
-                {t("sellProduct")}
-              </Button>
-            </form>
+              <form onSubmit={submit} className="mt-8 flex flex-col sm:flex-row gap-2 max-w-2xl">
+                <div className="relative flex-1">
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                  <input
+                    data-testid="hero-search-input"
+                    value={q}
+                    onChange={(e) => setQ(e.target.value)}
+                    placeholder={t("searchPlaceholder")}
+                    className="w-full h-14 pl-12 pr-4 rounded-xl border border-border bg-white shadow-sm text-base focus:outline-none focus:ring-2 focus:ring-primary/40"
+                  />
+                </div>
+                <Button data-testid="hero-search-btn" type="submit" className="h-14 px-8 rounded-xl bg-primary text-base font-semibold active:scale-95 transition-transform">
+                  {t("search")}
+                </Button>
+                <Button data-testid="hero-sell-btn" type="button" onClick={() => nav("/sell")} className="h-14 px-6 rounded-xl bg-secondary text-secondary-foreground hover:bg-secondary/90 text-base font-semibold active:scale-95 transition-transform">
+                  {t("sellProduct")}
+                </Button>
+              </form>
+            </div>
+
+            <HeroSlider />
           </div>
         </div>
       </section>
