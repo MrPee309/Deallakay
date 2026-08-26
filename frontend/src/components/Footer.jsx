@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { Smartphone } from "lucide-react";
+import { Smartphone, FileText } from "lucide-react";
 import Logo from "./Logo";
 import { useApp } from "@/contexts/AppContext";
 import { getCatName } from "@/i18n";
@@ -8,11 +8,15 @@ import { getCatName } from "@/i18n";
 // Expo APK download link
 const ANDROID_APK_URL = "https://expo.dev/artifacts/eas/ByYezKBe7ZGQTzxb9fHiU36HKqDgvzOuBq5VVBsTxDo.apk";
 
+// Hosted directly in this site's own /public/downloads folder — a static
+// file, so this path never expires and needs no external account.
+const GUIDE_PDF_URL = "/downloads/deallakay-gid-fomasyon.pdf";
+
 export default function Footer() {
   const { categories, lang, branding } = useApp();
   return (
     <footer className="border-t border-border bg-white mt-16 pb-8">
-      <div className="max-w-7xl mx-auto px-4 lg:px-6 pt-8">
+      <div className="max-w-7xl mx-auto px-4 lg:px-6 pt-8 space-y-3">
         <a
           href={ANDROID_APK_URL}
           data-testid="footer-apk-download"
@@ -25,6 +29,23 @@ export default function Footer() {
             </p>
             <p className="text-sm opacity-90">
               Tape la a pou telechaje aplikasyon an.
+            </p>
+          </div>
+        </a>
+
+        <a
+          href={GUIDE_PDF_URL}
+          download
+          data-testid="footer-guide-download"
+          className="flex items-center gap-3 bg-card border border-border rounded-2xl p-5 hover:border-primary transition-colors"
+        >
+          <FileText className="w-8 h-8 shrink-0 text-primary" />
+          <div className="flex-1">
+            <p className="font-display font-semibold">
+              Gid Fòmasyon DealLakay (PDF)
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Manyèl konplè: kijan pou itilize sit la ak aplikasyon an, etap pa etap.
             </p>
           </div>
         </a>
