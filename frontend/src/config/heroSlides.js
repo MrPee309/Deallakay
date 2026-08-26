@@ -10,7 +10,6 @@ export const heroSlides = [
   { src: "/images/hero/hero-jacmel.jpg", city: "Jacmel", caption: "Jacmel, nou la pou sèvi w !" },
   { src: "/images/hero/hero-leogane.jpg", city: "Léogâne", caption: "Sèvis rapid, pri abòdab !" },
   { src: "/images/hero/hero-okay.jpg", city: "Okay", caption: "Okay, kalite sèvis se priyorite nou !" },
-  { src: "/images/hero/hero-cayes.jpg", city: "Cayes", caption: "Cayes, teknoloji a nan men nou !" },
   { src: "/images/hero/hero-gonaives.jpg", city: "Gonaïves", caption: "Gonaïves, nou toujou disponib !" },
   { src: "/images/hero/hero-cap-haitien.jpg", city: "Cap-Haïtien", caption: "Cap-Haïtien, konfyans se baz nou !" },
   { src: "/images/hero/hero-saint-marc.jpg", city: "Saint-Marc", caption: "Saint-Marc, sèvis seryè & rapid !" },
