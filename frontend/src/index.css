@@ -65,3 +65,21 @@ h1, h2, h3, h4, h5, .font-display {
     background-image: radial-gradient(circle at 1px 1px, rgba(0,71,255,0.08) 1px, transparent 0);
     background-size: 28px 28px;
 }
+
+/* Beta Announcement Bar — slow horizontal marquee */
+@keyframes beta-marquee {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+}
+.beta-marquee-track {
+    animation: beta-marquee 28s linear infinite;
+}
+.beta-marquee-track:hover,
+.beta-marquee-track:focus-within {
+    animation-play-state: paused;
+}
+@media (prefers-reduced-motion: reduce) {
+    .beta-marquee-track {
+        animation: none;
+    }
+}
