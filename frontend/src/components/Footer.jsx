@@ -4,13 +4,7 @@ import { Smartphone, FileText } from "lucide-react";
 import Logo from "./Logo";
 import { useApp } from "@/contexts/AppContext";
 import { getCatName } from "@/i18n";
-
-// Expo APK download link
-const ANDROID_APK_URL = "https://expo.dev/artifacts/eas/ByYezKBe7ZGQTzxb9fHiU36HKqDgvzOuBq5VVBsTxDo.apk";
-
-// Hosted directly in this site's own /public/downloads folder — a static
-// file, so this path never expires and needs no external account.
-const GUIDE_PDF_URL = "/downloads/deallakay-gid-fomasyon.pdf";
+import { ANDROID_APK_URL, GUIDE_PDF_URL } from "@/config/betaLinks";
 
 export default function Footer() {
   const { categories, lang, branding } = useApp();
