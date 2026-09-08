@@ -11,10 +11,11 @@ import uuid
 from typing import List, Optional, Dict, Any
 
 from fastapi import APIRouter, HTTPException, Depends
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 
+import auth as auth_lib
 from seed_data import DEFAULT_SETTINGS
-from shared import db, NO_ID, slugify, get_admin, create_notification, require_staff, STAFF_PERMISSIONS
+from shared import db, NO_ID, now_iso, slugify, get_admin, create_notification, require_staff, STAFF_PERMISSIONS
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -320,6 +321,62 @@ async def admin_verify_supplier(vid: str, decision: str, admin: dict = Depends(g
 class StaffIn(BaseModel):
     username: str
     permissions: List[str] = []
+
+
+class StaffCreateIn(BaseModel):
+    full_name: str
+    username: str
+    email: EmailStr
+    phone: str = ""
+    password: str
+    permissions: List[str] = []
+
+
+@router.post("/staff/create-account")
+async def create_staff_account(data: StaffCreateIn, admin: dict = Depends(get_admin)):
+    """Creates a BRAND NEW account with Staff role directly — for when the
+    admin is hiring/onboarding someone who doesn't already have a DealLakay
+    account, and wants to hand them a working login themselves rather than
+    have them self-register. Full-admin only (not delegable to Staff)."""
+    bad = [p for p in data.permissions if p not in STAFF_PERMISSIONS]
+    if bad:
+        raise HTTPException(status_code=400, detail=f"Otorizasyon pa valab: {', '.join(bad)}")
+    if len(data.password) < 8:
+        raise HTTPException(status_code=400, detail="Modpas la dwe gen omwen 8 karaktè.")
+    email = data.email.lower().strip()
+    username = data.username.lower().strip()
+    if await db.users.find_one({"email": email}):
+        raise HTTPException(status_code=400, detail="Email sa a deja itilize.")
+    if await db.users.find_one({"username": username}):
+        raise HTTPException(status_code=400, detail="Non itilizatè sa a deja pran.")
+    uid = str(uuid.uuid4())
+    user = {
+        "id": uid,
+        "full_name": data.full_name.strip(),
+        "username": username,
+        "email": email,
+        "phone": data.phone.strip(),
+        "password_hash": auth_lib.hash_password(data.password),
+        "country": "Ayiti",
+        "department": "",
+        "city": "",
+        "role": "staff",
+        "permissions": data.permissions,
+        "status": "active",
+        # Admin is creating and vouching for this account directly, so it's
+        # treated as verified from the start — no need to make a new staff
+        # member click a verification email link before they can log in.
+        "email_verified": True,
+        "phone_verified": False,
+        "is_seller": False,
+        "is_technician": False,
+        "avatar": "",
+        "token_version": 0,
+        "terms_accepted": True,
+        "created_at": now_iso(),
+    }
+    await db.users.insert_one(dict(user))
+    return {"message": "Kont anplwaye kreye.", "username": username, "email": email}
 
 
 @router.get("/staff-permissions")
