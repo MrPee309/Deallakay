@@ -100,6 +100,20 @@ def require_staff(permission: str):
     return _dep
 
 
+async def _heal_admin_staff_roles(u: dict) -> dict:
+    """Self-healing safety net: an Admin/Staff account must never carry
+    is_seller/is_technician — the create/become endpoints already block
+    granting these going forward, but an account that picked one up before
+    that fix existed (or via any other path) would otherwise keep it
+    forever. Checked on every login/me call; corrects the database the
+    moment it's noticed, so no separate migration script is needed."""
+    if u.get("role") in ("admin", "staff") and (u.get("is_seller") or u.get("is_technician")):
+        await db.users.update_one({"id": u["id"]}, {"$set": {"is_seller": False, "is_technician": False}})
+        u["is_seller"] = False
+        u["is_technician"] = False
+    return u
+
+
 def public_user(u: dict) -> dict:
     return {
         "id": u["id"],
