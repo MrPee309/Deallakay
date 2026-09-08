@@ -200,6 +200,8 @@ async def my_suppliers(user: dict = Depends(get_current_user)):
 
 @router.post("/suppliers")
 async def create_supplier(data: SupplierIn, user: dict = Depends(get_current_user)):
+    if user.get("role") in ("admin", "staff"):
+        raise HTTPException(status_code=403, detail="Kont Admin/Anplwaye pa ka kreye yon pwofil Founisè — se yon wòl sipèvizyon, pa yon patisipan mache a.")
     supplier = {
         "id": str(uuid.uuid4()),
         "owner_id": user["id"],
