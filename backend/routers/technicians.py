@@ -63,6 +63,8 @@ async def get_specialties():
 
 @router.post("/technician/become")
 async def become_technician(data: BecomeTechnicianIn, user: dict = Depends(get_current_user)):
+    if user.get("role") in ("admin", "staff"):
+        raise HTTPException(status_code=403, detail="Kont Admin/Anplwaye pa ka vin Teknisyen — se yon wòl sipèvizyon, pa yon patisipan mache a.")
     if not data.accept_technician_terms:
         raise HTTPException(status_code=400, detail="Ou dwe aksepte règ teknisyen yo.")
     if not user.get("email_verified"):
