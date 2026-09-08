@@ -34,6 +34,8 @@ class SellerSettingsIn(BaseModel):
 
 @router.post("/seller/become")
 async def become_seller(data: BecomeSellerIn, user: dict = Depends(get_current_user)):
+    if user.get("role") in ("admin", "staff"):
+        raise HTTPException(status_code=403, detail="Kont Admin/Anplwaye pa ka vin Vandè — se yon wòl sipèvizyon, pa yon patisipan mache a.")
     if not data.accept_seller_terms or not data.accept_marketplace_rules:
         raise HTTPException(status_code=400, detail="Ou dwe aksepte règ vandè yo.")
     if not user.get("email_verified"):
