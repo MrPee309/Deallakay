@@ -252,6 +252,52 @@ async def admin_supplier_action(sid: str, action: str, admin: dict = Depends(get
     return {"message": "ok"}
 
 
+# ---------------- Seller applications (pending approval) ----------------
+@router.get("/seller-applications")
+async def admin_seller_applications(admin: dict = Depends(get_admin)):
+    return await db.seller_profiles.find({}, NO_ID).sort("date_joined", -1).to_list(500)
+
+
+@router.put("/seller-applications/{uid}/{action}")
+async def admin_seller_action(uid: str, action: str, admin: dict = Depends(get_admin)):
+    if action not in ("approve", "reject"):
+        raise HTTPException(status_code=400, detail="Aksyon pa valab.")
+    p = await db.seller_profiles.find_one({"user_id": uid})
+    if not p:
+        raise HTTPException(status_code=404, detail="Pa jwenn.")
+    if action == "approve":
+        await db.seller_profiles.update_one({"user_id": uid}, {"$set": {"status": "active"}})
+        await db.users.update_one({"id": uid}, {"$set": {"is_seller": True}})
+        await create_notification(uid, "seller_approved", "Demann Vandè ou apwouve — ou ka poste pwodwi kounye a!", "")
+    else:
+        await db.seller_profiles.update_one({"user_id": uid}, {"$set": {"status": "rejected"}})
+        await create_notification(uid, "seller_rejected", "Demann Vandè ou rejte.", "")
+    return {"message": "ok"}
+
+
+# ---------------- Technician applications (pending approval) ----------------
+@router.get("/technician-applications")
+async def admin_technician_applications(admin: dict = Depends(get_admin)):
+    return await db.technician_profiles.find({}, NO_ID).sort("date_joined", -1).to_list(500)
+
+
+@router.put("/technician-applications/{uid}/{action}")
+async def admin_technician_action(uid: str, action: str, admin: dict = Depends(get_admin)):
+    if action not in ("approve", "reject"):
+        raise HTTPException(status_code=400, detail="Aksyon pa valab.")
+    p = await db.technician_profiles.find_one({"user_id": uid})
+    if not p:
+        raise HTTPException(status_code=404, detail="Pa jwenn.")
+    if action == "approve":
+        await db.technician_profiles.update_one({"user_id": uid}, {"$set": {"status": "active"}})
+        await db.users.update_one({"id": uid}, {"$set": {"is_technician": True}})
+        await create_notification(uid, "technician_approved", "Demann Teknisyen ou apwouve — ou vizib pou kliyan kounye a!", "")
+    else:
+        await db.technician_profiles.update_one({"user_id": uid}, {"$set": {"status": "rejected"}})
+        await create_notification(uid, "technician_rejected", "Demann Teknisyen ou rejte.", "")
+    return {"message": "ok"}
+
+
 @router.get("/supplier-verifications")
 async def admin_supplier_verifications(admin: dict = Depends(get_admin)):
     return await db.supplier_verifications.find({}, NO_ID).sort("created_at", -1).to_list(500)
