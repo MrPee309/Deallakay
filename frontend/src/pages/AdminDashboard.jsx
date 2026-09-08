@@ -357,6 +357,12 @@ function AdminStaff() {
   const [newPerms, setNewPerms] = useState([]);
   const [saving, setSaving] = useState(false);
 
+  // New-account creation form (admin sets everything, including password)
+  const [nf, setNf] = useState({ full_name: "", username: "", email: "", phone: "", password: "" });
+  const [nfPerms, setNfPerms] = useState([]);
+  const [creating, setCreating] = useState(false);
+  const setN = (k, v) => setNf((s) => ({ ...s, [k]: v }));
+
   const load = async () => {
     const [permsRes, staffRes] = await Promise.all([api.get("/admin/staff-permissions"), api.get("/admin/staff")]);
     setAvailable(permsRes.data);
@@ -365,6 +371,22 @@ function AdminStaff() {
   useEffect(() => { load(); }, []);
 
   const togglePerm = (p) => setNewPerms((s) => (s.includes(p) ? s.filter((x) => x !== p) : [...s, p]));
+  const toggleNfPerm = (p) => setNfPerms((s) => (s.includes(p) ? s.filter((x) => x !== p) : [...s, p]));
+
+  const createAccount = async () => {
+    if (!nf.full_name.trim() || !nf.username.trim() || !nf.email.trim() || !nf.password) {
+      return toast.error("Ranpli non konplè, non itilizatè, email, ak modpas.");
+    }
+    if (nf.password.length < 8) return toast.error("Modpas la dwe gen omwen 8 karaktè.");
+    setCreating(true);
+    try {
+      const { data } = await api.post("/admin/staff/create-account", { ...nf, permissions: nfPerms });
+      toast.success(`Kont kreye pou @${data.username} — ba yo non itilizatè a ak modpas la.`);
+      setNf({ full_name: "", username: "", email: "", phone: "", password: "" });
+      setNfPerms([]);
+      load();
+    } catch (e) { toast.error(apiError(e)); } finally { setCreating(false); }
+  };
 
   const addStaff = async () => {
     if (!username.trim()) return toast.error("Antre non itilizatè a.");
@@ -391,8 +413,33 @@ function AdminStaff() {
   return (
     <div className="space-y-6">
       <div className="bg-card border border-border rounded-xl p-4 space-y-3">
-        <h3 className="font-semibold flex items-center gap-2"><UserCog className="w-4 h-4 text-primary" /> Ajoute yon Anplwaye</h3>
-        <p className="text-xs text-muted-foreground">Itilizatè a dwe DEJA gen yon kont DealLakay òdinè.</p>
+        <h3 className="font-semibold flex items-center gap-2"><UserCog className="w-4 h-4 text-primary" /> Kreye Nouvo Kont Anplwaye</h3>
+        <p className="text-xs text-muted-foreground">Pou yon moun ki PA gen kont DealLakay ankò — ou kreye kont lan pou yo, ba yo non itilizatè ak modpas ou chwazi.</p>
+        <p className="text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">⚠️ Sa a se SÈLMAN pou Anplwaye ekip DealLakay — pa pou Kliyan, Vandè, Teknisyen, oswa Founisè. Kont sa a pa janm ka jwenn kapasite Vandè/Teknisyen, menm si moun nan eseye.</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div><Label>Non Konplè</Label><Input value={nf.full_name} onChange={(e) => setN("full_name", e.target.value)} className="mt-1.5" data-testid="staff-create-fullname" /></div>
+          <div><Label>Non Itilizatè</Label><Input value={nf.username} onChange={(e) => setN("username", e.target.value)} className="mt-1.5" data-testid="staff-create-username" /></div>
+          <div><Label>Email</Label><Input type="email" value={nf.email} onChange={(e) => setN("email", e.target.value)} className="mt-1.5" data-testid="staff-create-email" /></div>
+          <div><Label>Telefòn (opsyonèl)</Label><Input value={nf.phone} onChange={(e) => setN("phone", e.target.value)} className="mt-1.5" data-testid="staff-create-phone" /></div>
+          <div className="sm:col-span-2"><Label>Modpas (omwen 8 karaktè)</Label><Input type="text" value={nf.password} onChange={(e) => setN("password", e.target.value)} className="mt-1.5" data-testid="staff-create-password" /></div>
+        </div>
+        <div>
+          <Label>Otorizasyon</Label>
+          <div className="flex flex-wrap gap-3 mt-2">
+            {available.map((p) => (
+              <label key={p} className="flex items-center gap-1.5 text-sm cursor-pointer">
+                <Checkbox checked={nfPerms.includes(p)} onCheckedChange={() => toggleNfPerm(p)} data-testid={`staff-create-perm-${p}`} />
+                {PERMISSION_LABELS[p] || p}
+              </label>
+            ))}
+          </div>
+        </div>
+        <Button onClick={createAccount} disabled={creating} data-testid="staff-create-btn">{creating ? <Loader2 className="w-4 h-4 animate-spin" /> : "Kreye Kont"}</Button>
+      </div>
+
+      <div className="bg-card border border-border rounded-xl p-4 space-y-3">
+        <h3 className="font-semibold flex items-center gap-2"><UserCog className="w-4 h-4 text-primary" /> Pwomouvwa yon Kont ki Deja Egziste</h3>
+        <p className="text-xs text-muted-foreground">Si moun nan gen DEJA yon kont DealLakay, itilize sa a olye.</p>
         <div>
           <Label>Non Itilizatè</Label>
           <Input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="egzanp: jean_p" className="mt-1.5" data-testid="staff-username" />
