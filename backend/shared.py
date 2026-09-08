@@ -111,6 +111,7 @@ def public_user(u: dict) -> dict:
         "department": u.get("department"),
         "city": u.get("city"),
         "role": u.get("role"),
+        "permissions": u.get("permissions", []),
         "email_verified": u.get("email_verified", False),
         "phone_verified": u.get("phone_verified", False),
         "is_seller": u.get("is_seller", False),
