@@ -45,6 +45,8 @@ export default function AdminDashboard() {
           <TabsTrigger value="products" data-testid="admin-tab-products">Moderasyon</TabsTrigger>
           <TabsTrigger value="users" data-testid="admin-tab-users">Itilizatè</TabsTrigger>
           <TabsTrigger value="reports" data-testid="admin-tab-reports">Rapò</TabsTrigger>
+          <TabsTrigger value="seller-applications" data-testid="admin-tab-seller-app">Aplikasyon Vandè</TabsTrigger>
+          <TabsTrigger value="technician-applications" data-testid="admin-tab-tech-app">Aplikasyon Teknisyen</TabsTrigger>
           <TabsTrigger value="verifications" data-testid="admin-tab-verif">Verifikasyon Vandè</TabsTrigger>
           <TabsTrigger value="tech-verifications" data-testid="admin-tab-tech-verif">Verifikasyon Teknisyen</TabsTrigger>
           <TabsTrigger value="supplier-approvals" data-testid="admin-tab-supplier-approvals">Founisè An Atant</TabsTrigger>
@@ -55,6 +57,8 @@ export default function AdminDashboard() {
         <TabsContent value="products"><AdminProducts /></TabsContent>
         <TabsContent value="users"><AdminUsers /></TabsContent>
         <TabsContent value="reports"><AdminReports /></TabsContent>
+        <TabsContent value="seller-applications"><AdminSellerApplications /></TabsContent>
+        <TabsContent value="technician-applications"><AdminTechnicianApplications /></TabsContent>
         <TabsContent value="verifications"><AdminVerifications /></TabsContent>
         <TabsContent value="tech-verifications"><AdminTechnicianVerifications /></TabsContent>
         <TabsContent value="supplier-approvals"><AdminSupplierApprovals /></TabsContent>
@@ -159,6 +163,49 @@ function AdminReports() {
           </div>
           <span className={`text-xs px-2 py-0.5 rounded-full ${r.status === "open" ? "bg-amber-100 text-amber-700" : "bg-emerald-100 text-emerald-700"}`}>{r.status}</span>
           {r.status === "open" && <Button size="sm" variant="outline" onClick={() => resolve(r.id)} data-testid={`resolve-${r.id}`}><Check className="w-4 h-4" /></Button>}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function AdminSellerApplications() {
+  const [items, setItems] = useState([]);
+  const load = async () => { const { data } = await api.get("/admin/seller-applications"); setItems(data.filter((s) => s.status === "pending")); };
+  useEffect(() => { load(); }, []);
+  const act = async (uid, action) => { await api.put(`/admin/seller-applications/${uid}/${action}`); toast.success("Fèt"); load(); };
+  return (
+    <div className="space-y-2">
+      {items.length === 0 && <div className="text-center py-10 text-muted-foreground">Pa gen aplikasyon Vandè an atant.</div>}
+      {items.map((s) => (
+        <div key={s.id} className="bg-card border border-border rounded-xl p-3 flex items-center gap-3" data-testid={`seller-app-${s.user_id}`}>
+          <Store className="w-5 h-5 text-primary shrink-0" />
+          <div className="flex-1"><div className="font-semibold text-sm">User ID: {s.user_id}</div><div className="text-xs text-muted-foreground">{timeAgo(s.date_joined)}</div></div>
+          <Button size="sm" className="bg-emerald-500" onClick={() => act(s.user_id, "approve")} data-testid={`seller-app-approve-${s.user_id}`}><Check className="w-4 h-4" /></Button>
+          <Button size="sm" variant="outline" className="text-destructive" onClick={() => act(s.user_id, "reject")} data-testid={`seller-app-reject-${s.user_id}`}><X className="w-4 h-4" /></Button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function AdminTechnicianApplications() {
+  const [items, setItems] = useState([]);
+  const load = async () => { const { data } = await api.get("/admin/technician-applications"); setItems(data.filter((t) => t.status === "pending")); };
+  useEffect(() => { load(); }, []);
+  const act = async (uid, action) => { await api.put(`/admin/technician-applications/${uid}/${action}`); toast.success("Fèt"); load(); };
+  return (
+    <div className="space-y-2">
+      {items.length === 0 && <div className="text-center py-10 text-muted-foreground">Pa gen aplikasyon Teknisyen an atant.</div>}
+      {items.map((t) => (
+        <div key={t.id} className="bg-card border border-border rounded-xl p-3 flex items-center gap-3" data-testid={`tech-app-${t.user_id}`}>
+          <ShieldCheck className="w-5 h-5 text-primary shrink-0" />
+          <div className="flex-1">
+            <div className="font-semibold text-sm">User ID: {t.user_id}</div>
+            <div className="text-xs text-muted-foreground">{(t.specialties || []).join(", ")} · {timeAgo(t.date_joined)}</div>
+          </div>
+          <Button size="sm" className="bg-emerald-500" onClick={() => act(t.user_id, "approve")} data-testid={`tech-app-approve-${t.user_id}`}><Check className="w-4 h-4" /></Button>
+          <Button size="sm" variant="outline" className="text-destructive" onClick={() => act(t.user_id, "reject")} data-testid={`tech-app-reject-${t.user_id}`}><X className="w-4 h-4" /></Button>
         </div>
       ))}
     </div>
