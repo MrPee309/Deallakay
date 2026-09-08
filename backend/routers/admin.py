@@ -14,7 +14,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 
 from seed_data import DEFAULT_SETTINGS
-from shared import db, NO_ID, slugify, get_admin, create_notification
+from shared import db, NO_ID, slugify, get_admin, create_notification, require_staff, STAFF_PERMISSIONS
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -84,7 +84,7 @@ async def admin_user_action(uid: str, action: str, admin: dict = Depends(get_adm
 
 
 @router.get("/products")
-async def admin_products(status: Optional[str] = None, admin: dict = Depends(get_admin)):
+async def admin_products(status: Optional[str] = None, admin: dict = Depends(require_staff("moderate_products"))):
     query = {}
     if status:
         query["status"] = status
@@ -95,7 +95,7 @@ async def admin_products(status: Optional[str] = None, admin: dict = Depends(get
 
 
 @router.get("/products/{pid}/imei")
-async def admin_view_imei(pid: str, admin: dict = Depends(get_admin)):
+async def admin_view_imei(pid: str, admin: dict = Depends(require_staff("moderate_products"))):
     p = await db.products.find_one({"id": pid}, NO_ID)
     if not p:
         raise HTTPException(status_code=404, detail="Pa jwenn.")
@@ -103,7 +103,7 @@ async def admin_view_imei(pid: str, admin: dict = Depends(get_admin)):
 
 
 @router.put("/products/{pid}/moderate/{decision}")
-async def admin_moderate(pid: str, decision: str, admin: dict = Depends(get_admin)):
+async def admin_moderate(pid: str, decision: str, admin: dict = Depends(require_staff("moderate_products"))):
     p = await db.products.find_one({"id": pid})
     if not p:
         raise HTTPException(status_code=404, detail="Pa jwenn.")
@@ -119,18 +119,18 @@ async def admin_moderate(pid: str, decision: str, admin: dict = Depends(get_admi
 
 
 @router.put("/products/{pid}/verify-imei")
-async def admin_verify_imei(pid: str, admin: dict = Depends(get_admin)):
+async def admin_verify_imei(pid: str, admin: dict = Depends(require_staff("moderate_products"))):
     await db.products.update_one({"id": pid}, {"$set": {"imei_verified": True}})
     return {"message": "IMEI verifye."}
 
 
 @router.get("/reports")
-async def admin_reports(admin: dict = Depends(get_admin)):
+async def admin_reports(admin: dict = Depends(require_staff("handle_reports"))):
     return await db.reports.find({}, NO_ID).sort("created_at", -1).to_list(500)
 
 
 @router.put("/reports/{rid}/resolve")
-async def admin_resolve_report(rid: str, admin: dict = Depends(get_admin)):
+async def admin_resolve_report(rid: str, admin: dict = Depends(require_staff("handle_reports"))):
     await db.reports.update_one({"id": rid}, {"$set": {"status": "resolved"}})
     return {"message": "ok"}
 
@@ -230,12 +230,12 @@ async def admin_update_settings(data: SettingsIn, admin: dict = Depends(get_admi
 
 # ---------------- Supplier Hub moderation ----------------
 @router.get("/suppliers")
-async def admin_suppliers(admin: dict = Depends(get_admin)):
+async def admin_suppliers(admin: dict = Depends(require_staff("approve_suppliers"))):
     return await db.suppliers.find({}, NO_ID).sort("created_at", -1).to_list(500)
 
 
 @router.put("/suppliers/{sid}/{action}")
-async def admin_supplier_action(sid: str, action: str, admin: dict = Depends(get_admin)):
+async def admin_supplier_action(sid: str, action: str, admin: dict = Depends(require_staff("approve_suppliers"))):
     status_map = {"approve": {"status": "active"}, "reject": {"status": "rejected"},
                   "suspend": {"status": "suspended"}, "unsuspend": {"status": "active"},
                   "feature": {"featured": True}, "unfeature": {"featured": False}}
@@ -254,12 +254,12 @@ async def admin_supplier_action(sid: str, action: str, admin: dict = Depends(get
 
 # ---------------- Seller applications (pending approval) ----------------
 @router.get("/seller-applications")
-async def admin_seller_applications(admin: dict = Depends(get_admin)):
+async def admin_seller_applications(admin: dict = Depends(require_staff("approve_sellers"))):
     return await db.seller_profiles.find({}, NO_ID).sort("date_joined", -1).to_list(500)
 
 
 @router.put("/seller-applications/{uid}/{action}")
-async def admin_seller_action(uid: str, action: str, admin: dict = Depends(get_admin)):
+async def admin_seller_action(uid: str, action: str, admin: dict = Depends(require_staff("approve_sellers"))):
     if action not in ("approve", "reject"):
         raise HTTPException(status_code=400, detail="Aksyon pa valab.")
     p = await db.seller_profiles.find_one({"user_id": uid})
@@ -277,12 +277,12 @@ async def admin_seller_action(uid: str, action: str, admin: dict = Depends(get_a
 
 # ---------------- Technician applications (pending approval) ----------------
 @router.get("/technician-applications")
-async def admin_technician_applications(admin: dict = Depends(get_admin)):
+async def admin_technician_applications(admin: dict = Depends(require_staff("approve_technicians"))):
     return await db.technician_profiles.find({}, NO_ID).sort("date_joined", -1).to_list(500)
 
 
 @router.put("/technician-applications/{uid}/{action}")
-async def admin_technician_action(uid: str, action: str, admin: dict = Depends(get_admin)):
+async def admin_technician_action(uid: str, action: str, admin: dict = Depends(require_staff("approve_technicians"))):
     if action not in ("approve", "reject"):
         raise HTTPException(status_code=400, detail="Aksyon pa valab.")
     p = await db.technician_profiles.find_one({"user_id": uid})
@@ -313,4 +313,62 @@ async def admin_verify_supplier(vid: str, decision: str, admin: dict = Depends(g
     if decision == "approve":
         await db.suppliers.update_one({"id": v["supplier_id"]}, {"$set": {"verified": True}})
         await create_notification(v["owner_id"], "verified", f"'{v['company_name']}' se yon Founisè Verifye kounye a!", "")
+    return {"message": "ok"}
+
+
+# ---------------- Staff (limited-permission admin helpers) ----------------
+class StaffIn(BaseModel):
+    username: str
+    permissions: List[str] = []
+
+
+@router.get("/staff-permissions")
+async def list_staff_permissions(admin: dict = Depends(get_admin)):
+    """Full-admin only — the fixed list of scopes available to grant."""
+    return STAFF_PERMISSIONS
+
+
+@router.get("/staff")
+async def list_staff(admin: dict = Depends(get_admin)):
+    staff = await db.users.find({"role": "staff"}, {"_id": 0, "password_hash": 0}).to_list(200)
+    return staff
+
+
+@router.post("/staff")
+async def add_staff(data: StaffIn, admin: dict = Depends(get_admin)):
+    """Promotes an EXISTING user account to Staff with the given
+    permissions. Never grants is_seller/is_technician — Staff/Admin stay
+    entirely outside the marketplace roles, on purpose."""
+    bad = [p for p in data.permissions if p not in STAFF_PERMISSIONS]
+    if bad:
+        raise HTTPException(status_code=400, detail=f"Otorizasyon pa valab: {', '.join(bad)}")
+    u = await db.users.find_one({"username": data.username})
+    if not u:
+        raise HTTPException(status_code=404, detail="Itilizatè pa jwenn.")
+    if u.get("role") == "admin":
+        raise HTTPException(status_code=400, detail="Itilizatè sa a se deja yon Admin total.")
+    await db.users.update_one({"id": u["id"]}, {"$set": {"role": "staff", "permissions": data.permissions}})
+    await create_notification(u["id"], "staff_granted", "Ou vin yon manm ekip DealLakay ak dwa administratif limite.", "")
+    return {"message": "ok"}
+
+
+@router.put("/staff/{uid}")
+async def update_staff(uid: str, data: StaffIn, admin: dict = Depends(get_admin)):
+    bad = [p for p in data.permissions if p not in STAFF_PERMISSIONS]
+    if bad:
+        raise HTTPException(status_code=400, detail=f"Otorizasyon pa valab: {', '.join(bad)}")
+    u = await db.users.find_one({"id": uid})
+    if not u or u.get("role") != "staff":
+        raise HTTPException(status_code=404, detail="Manm ekip pa jwenn.")
+    await db.users.update_one({"id": uid}, {"$set": {"permissions": data.permissions}})
+    return {"message": "ok"}
+
+
+@router.delete("/staff/{uid}")
+async def remove_staff(uid: str, admin: dict = Depends(get_admin)):
+    """Revokes Staff status entirely — back to a normal Client account."""
+    u = await db.users.find_one({"id": uid})
+    if not u or u.get("role") != "staff":
+        raise HTTPException(status_code=404, detail="Manm ekip pa jwenn.")
+    await db.users.update_one({"id": uid}, {"$set": {"role": "user", "permissions": []}})
     return {"message": "ok"}
