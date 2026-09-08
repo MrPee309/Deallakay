@@ -43,7 +43,7 @@ async def become_seller(data: BecomeSellerIn, user: dict = Depends(get_current_u
         await db.seller_profiles.insert_one({
             "id": str(uuid.uuid4()),
             "user_id": user["id"],
-            "status": "active",
+            "status": "pending",
             "seller_verified": False,
             "whatsapp_enabled": True,
             "whatsapp_number": user.get("phone", ""),
@@ -57,8 +57,11 @@ async def become_seller(data: BecomeSellerIn, user: dict = Depends(get_current_u
             "followers": 0,
             "date_joined": now_iso(),
         })
-    await db.users.update_one({"id": user["id"]}, {"$set": {"is_seller": True}})
-    return {"message": "Ou se yon vandè kounye a!", "status": "active"}
+    # is_seller is intentionally NOT set here — the account only gains
+    # seller capabilities (posting products, appearing as a Seller
+    # everywhere) once an admin approves this request. Until then the
+    # profile exists but sits pending, same as Suppliers already worked.
+    return {"message": "Demann ou voye! Li an atant apwobasyon admin anvan ou vin yon Vandè.", "status": "pending"}
 
 
 @router.get("/seller/profile")
