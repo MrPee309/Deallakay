@@ -73,6 +73,33 @@ async def get_admin(user: dict = Depends(get_current_user)) -> dict:
     return user
 
 
+# Staff permission scopes an admin can hand out — kept to a fixed, known
+# list rather than free-text strings, so the Staff tab can render checkboxes
+# and nothing can accidentally grant a scope that doesn't map to any check.
+STAFF_PERMISSIONS = [
+    "moderate_products",
+    "approve_sellers",
+    "approve_technicians",
+    "approve_suppliers",
+    "handle_reports",
+]
+
+
+def require_staff(permission: str):
+    """Dependency factory: a full Admin always passes. A Staff member passes
+    only if `permission` is in their granted list. Everyone else gets 403.
+    Staff never gets the marketplace roles (is_seller/is_technician) —
+    those stay entirely separate, per the "Admin shouldn't be a
+    Seller/Technician" principle."""
+    async def _dep(user: dict = Depends(get_current_user)) -> dict:
+        if user.get("role") == "admin":
+            return user
+        if user.get("role") == "staff" and permission in (user.get("permissions") or []):
+            return user
+        raise HTTPException(status_code=403, detail="Ou pa gen otorizasyon pou aksyon sa a.")
+    return _dep
+
+
 def public_user(u: dict) -> dict:
     return {
         "id": u["id"],
