@@ -137,3 +137,93 @@ async def list_stations(city: Optional[str] = None):
     for s in stations:
         s["driver_count"] = await db.transport_drivers.count_documents({"station_id": s["id"], "verification_status": "verified"})
     return stations
+
+
+# ---------------- Location (GPS) — Phase 2 ----------------
+# A location older than this is never treated as "the driver is here right
+# now" — the driver just drops out of nearby-search results until a fresh
+# heartbeat arrives. This does NOT change their online/offline status field
+# (that's an explicit driver action); it only affects whether they're
+# considered findable.
+LOCATION_STALE_SECONDS = 180
+
+
+class LocationIn(BaseModel):
+    lat: float
+    lng: float
+
+
+def _is_valid_coordinate(lat: float, lng: float) -> bool:
+    return -90 <= lat <= 90 and -180 <= lng <= 180
+
+
+@router.put("/drivers/location")
+async def update_driver_location(data: LocationIn, user: dict = Depends(get_current_user)):
+    if not _is_valid_coordinate(data.lat, data.lng):
+        raise HTTPException(status_code=400, detail="Kowòdone pa valab.")
+    d = await db.transport_drivers.find_one({"user_id": user["id"]})
+    if not d:
+        raise HTTPException(status_code=404, detail="Ou pa gen yon pwofil Chofè.")
+    if not user.get("is_moto_driver") or d.get("verification_status") != "verified":
+        raise HTTPException(status_code=403, detail="Chofè ou poko verifye.")
+    # A driver can only ever write THEIR OWN location — the query is keyed
+    # on user_id from the authenticated token, never a client-supplied id,
+    # so one driver can't overwrite another's coordinates.
+    await db.driver_locations.update_one(
+        {"driver_id": user["id"]},
+        {"$set": {
+            "driver_id": user["id"],
+            "location": {"type": "Point", "coordinates": [data.lng, data.lat]},
+            "status": d.get("status", "offline"),
+            "updated_at": now_iso(),
+        }},
+        upsert=True,
+    )
+    return {"message": "ok"}
+
+
+def _seconds_since(iso_ts: str) -> float:
+    from datetime import datetime, timezone
+    try:
+        then = datetime.fromisoformat(iso_ts)
+        return (datetime.now(timezone.utc) - then).total_seconds()
+    except Exception:
+        return float("inf")
+
+
+async def find_nearby_available_drivers(lng: float, lat: float, service_type: Optional[str] = None, radius_km: float = 5.0, limit: int = 20) -> list:
+    """Reusable geospatial query — the actual matching engine (Phase 3) will
+    call this directly rather than duplicating the query. Only returns
+    drivers who are simultaneously: verified, marked 'available', AND have
+    a location fresh within LOCATION_STALE_SECONDS. Distance calculation
+    happens in MongoDB via $near, never by loading every driver into the
+    app and computing distances in Python/JS."""
+    locs = await db.driver_locations.find({
+        "location": {"$near": {"$geometry": {"type": "Point", "coordinates": [lng, lat]}, "$maxDistance": radius_km * 1000}},
+        "status": "available",
+    }, NO_ID).to_list(limit * 3)  # over-fetch a bit before filtering staleness/verification below
+
+    fresh_locs = [l for l in locs if _seconds_since(l["updated_at"]) <= LOCATION_STALE_SECONDS]
+    driver_ids = [l["driver_id"] for l in fresh_locs]
+    if not driver_ids:
+        return []
+
+    query = {"user_id": {"$in": driver_ids}, "verification_status": "verified", "status": "available"}
+    if service_type:
+        query["service_types"] = service_type
+    drivers = await db.transport_drivers.find(query, NO_ID).to_list(limit)
+    loc_by_driver = {l["driver_id"]: l for l in fresh_locs}
+    results = []
+    for d in drivers:
+        loc = loc_by_driver.get(d["user_id"])
+        if loc:
+            results.append({**_public_driver(d), "coordinates": loc["location"]["coordinates"]})
+    return results[:limit]
+
+
+@router.get("/admin/nearby-drivers-check")
+async def admin_check_nearby_drivers(lat: float, lng: float, radius_km: float = 5.0, admin: dict = Depends(get_admin)):
+    """Diagnostic endpoint so Phase 2's geospatial query can be verified
+    end-to-end before Phase 3 (the real client-facing matching engine)
+    exists to exercise it."""
+    return await find_nearby_available_drivers(lng, lat, radius_km=radius_km)
