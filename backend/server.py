@@ -27,6 +27,7 @@ from routers.technicians import router as technicians_router
 from routers.requests import router as requests_router
 from routers.alerts import router as alerts_router
 from routers.suppliers import router as suppliers_router
+from routers.transport import router as transport_router
 
 app = FastAPI(title="DealLakay API")
 api = APIRouter(prefix="/api")
@@ -65,6 +66,7 @@ app.include_router(technicians_router)
 app.include_router(requests_router)
 app.include_router(alerts_router)
 app.include_router(suppliers_router)
+app.include_router(transport_router)
 app.include_router(api)
 
 _cors_origins_env = os.environ.get("CORS_ORIGINS", "").strip()
