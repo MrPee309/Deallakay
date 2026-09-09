@@ -112,6 +112,10 @@ async def startup():
         await db.users.create_index("username", unique=True)
         await db.products.create_index("slug")
         await db.products.create_index([("status", 1), ("category", 1)])
+        # Geospatial index for Transport & Delivery's nearby-driver search
+        # (Phase 2). Safe to call every startup — MongoDB no-ops if it
+        # already exists.
+        await db.driver_locations.create_index([("location", "2dsphere")])
     except Exception as e:
         logger.warning(f"index: {e}")
     admin_email = os.environ.get("ADMIN_EMAIL", "admin@deallakay.com").lower()
