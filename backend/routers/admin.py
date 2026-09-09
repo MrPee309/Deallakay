@@ -11,11 +11,10 @@ import uuid
 from typing import List, Optional, Dict, Any
 
 from fastapi import APIRouter, HTTPException, Depends
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
 
-import auth as auth_lib
 from seed_data import DEFAULT_SETTINGS
-from shared import db, NO_ID, now_iso, slugify, get_admin, create_notification, require_staff, STAFF_PERMISSIONS
+from shared import db, NO_ID, slugify, get_admin, create_notification, now_iso
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -85,7 +84,7 @@ async def admin_user_action(uid: str, action: str, admin: dict = Depends(get_adm
 
 
 @router.get("/products")
-async def admin_products(status: Optional[str] = None, admin: dict = Depends(require_staff("moderate_products"))):
+async def admin_products(status: Optional[str] = None, admin: dict = Depends(get_admin)):
     query = {}
     if status:
         query["status"] = status
@@ -96,7 +95,7 @@ async def admin_products(status: Optional[str] = None, admin: dict = Depends(req
 
 
 @router.get("/products/{pid}/imei")
-async def admin_view_imei(pid: str, admin: dict = Depends(require_staff("moderate_products"))):
+async def admin_view_imei(pid: str, admin: dict = Depends(get_admin)):
     p = await db.products.find_one({"id": pid}, NO_ID)
     if not p:
         raise HTTPException(status_code=404, detail="Pa jwenn.")
@@ -104,7 +103,7 @@ async def admin_view_imei(pid: str, admin: dict = Depends(require_staff("moderat
 
 
 @router.put("/products/{pid}/moderate/{decision}")
-async def admin_moderate(pid: str, decision: str, admin: dict = Depends(require_staff("moderate_products"))):
+async def admin_moderate(pid: str, decision: str, admin: dict = Depends(get_admin)):
     p = await db.products.find_one({"id": pid})
     if not p:
         raise HTTPException(status_code=404, detail="Pa jwenn.")
@@ -120,18 +119,18 @@ async def admin_moderate(pid: str, decision: str, admin: dict = Depends(require_
 
 
 @router.put("/products/{pid}/verify-imei")
-async def admin_verify_imei(pid: str, admin: dict = Depends(require_staff("moderate_products"))):
+async def admin_verify_imei(pid: str, admin: dict = Depends(get_admin)):
     await db.products.update_one({"id": pid}, {"$set": {"imei_verified": True}})
     return {"message": "IMEI verifye."}
 
 
 @router.get("/reports")
-async def admin_reports(admin: dict = Depends(require_staff("handle_reports"))):
+async def admin_reports(admin: dict = Depends(get_admin)):
     return await db.reports.find({}, NO_ID).sort("created_at", -1).to_list(500)
 
 
 @router.put("/reports/{rid}/resolve")
-async def admin_resolve_report(rid: str, admin: dict = Depends(require_staff("handle_reports"))):
+async def admin_resolve_report(rid: str, admin: dict = Depends(get_admin)):
     await db.reports.update_one({"id": rid}, {"$set": {"status": "resolved"}})
     return {"message": "ok"}
 
@@ -231,12 +230,12 @@ async def admin_update_settings(data: SettingsIn, admin: dict = Depends(get_admi
 
 # ---------------- Supplier Hub moderation ----------------
 @router.get("/suppliers")
-async def admin_suppliers(admin: dict = Depends(require_staff("approve_suppliers"))):
+async def admin_suppliers(admin: dict = Depends(get_admin)):
     return await db.suppliers.find({}, NO_ID).sort("created_at", -1).to_list(500)
 
 
 @router.put("/suppliers/{sid}/{action}")
-async def admin_supplier_action(sid: str, action: str, admin: dict = Depends(require_staff("approve_suppliers"))):
+async def admin_supplier_action(sid: str, action: str, admin: dict = Depends(get_admin)):
     status_map = {"approve": {"status": "active"}, "reject": {"status": "rejected"},
                   "suspend": {"status": "suspended"}, "unsuspend": {"status": "active"},
                   "feature": {"featured": True}, "unfeature": {"featured": False}}
@@ -250,52 +249,6 @@ async def admin_supplier_action(sid: str, action: str, admin: dict = Depends(req
         await create_notification(s["owner_id"], "supplier_approved", f"'{s['company_name']}' apwouve — li vizib sou sit la kounye a!", f"/suppliers/{sid}")
     elif action == "reject":
         await create_notification(s["owner_id"], "supplier_rejected", f"Demann founisè '{s['company_name']}' rejte.", "")
-    return {"message": "ok"}
-
-
-# ---------------- Seller applications (pending approval) ----------------
-@router.get("/seller-applications")
-async def admin_seller_applications(admin: dict = Depends(require_staff("approve_sellers"))):
-    return await db.seller_profiles.find({}, NO_ID).sort("date_joined", -1).to_list(500)
-
-
-@router.put("/seller-applications/{uid}/{action}")
-async def admin_seller_action(uid: str, action: str, admin: dict = Depends(require_staff("approve_sellers"))):
-    if action not in ("approve", "reject"):
-        raise HTTPException(status_code=400, detail="Aksyon pa valab.")
-    p = await db.seller_profiles.find_one({"user_id": uid})
-    if not p:
-        raise HTTPException(status_code=404, detail="Pa jwenn.")
-    if action == "approve":
-        await db.seller_profiles.update_one({"user_id": uid}, {"$set": {"status": "active"}})
-        await db.users.update_one({"id": uid}, {"$set": {"is_seller": True}})
-        await create_notification(uid, "seller_approved", "Demann Vandè ou apwouve — ou ka poste pwodwi kounye a!", "")
-    else:
-        await db.seller_profiles.update_one({"user_id": uid}, {"$set": {"status": "rejected"}})
-        await create_notification(uid, "seller_rejected", "Demann Vandè ou rejte.", "")
-    return {"message": "ok"}
-
-
-# ---------------- Technician applications (pending approval) ----------------
-@router.get("/technician-applications")
-async def admin_technician_applications(admin: dict = Depends(require_staff("approve_technicians"))):
-    return await db.technician_profiles.find({}, NO_ID).sort("date_joined", -1).to_list(500)
-
-
-@router.put("/technician-applications/{uid}/{action}")
-async def admin_technician_action(uid: str, action: str, admin: dict = Depends(require_staff("approve_technicians"))):
-    if action not in ("approve", "reject"):
-        raise HTTPException(status_code=400, detail="Aksyon pa valab.")
-    p = await db.technician_profiles.find_one({"user_id": uid})
-    if not p:
-        raise HTTPException(status_code=404, detail="Pa jwenn.")
-    if action == "approve":
-        await db.technician_profiles.update_one({"user_id": uid}, {"$set": {"status": "active"}})
-        await db.users.update_one({"id": uid}, {"$set": {"is_technician": True}})
-        await create_notification(uid, "technician_approved", "Demann Teknisyen ou apwouve — ou vizib pou kliyan kounye a!", "")
-    else:
-        await db.technician_profiles.update_one({"user_id": uid}, {"$set": {"status": "rejected"}})
-        await create_notification(uid, "technician_rejected", "Demann Teknisyen ou rejte.", "")
     return {"message": "ok"}
 
 
@@ -317,115 +270,75 @@ async def admin_verify_supplier(vid: str, decision: str, admin: dict = Depends(g
     return {"message": "ok"}
 
 
-# ---------------- Staff (limited-permission admin helpers) ----------------
-class StaffIn(BaseModel):
-    username: str
-    permissions: List[str] = []
+# ---------------- Transport: Driver applications ----------------
+@router.get("/transport/drivers")
+async def admin_list_drivers(admin: dict = Depends(get_admin)):
+    return await db.transport_drivers.find({}, NO_ID).sort("created_at", -1).to_list(500)
 
 
-class StaffCreateIn(BaseModel):
-    full_name: str
-    username: str
-    email: EmailStr
-    phone: str = ""
-    password: str
-    permissions: List[str] = []
+@router.put("/transport/drivers/{uid}/{action}")
+async def admin_driver_action(uid: str, action: str, admin: dict = Depends(get_admin)):
+    if action not in ("approve", "reject", "suspend"):
+        raise HTTPException(status_code=400, detail="Aksyon pa valab.")
+    d = await db.transport_drivers.find_one({"user_id": uid})
+    if not d:
+        raise HTTPException(status_code=404, detail="Pa jwenn.")
+    if action == "approve":
+        await db.transport_drivers.update_one({"user_id": uid}, {"$set": {"verification_status": "verified"}})
+        await db.users.update_one({"id": uid}, {"$set": {"is_moto_driver": True}})
+        await create_notification(uid, "driver_approved", "Demann Chofè Moto ou apwouve — ou ka vin disponib kounye a!", "")
+    elif action == "reject":
+        await db.transport_drivers.update_one({"user_id": uid}, {"$set": {"verification_status": "rejected"}})
+        await create_notification(uid, "driver_rejected", "Demann Chofè Moto ou rejte.", "")
+    else:  # suspend
+        await db.transport_drivers.update_one({"user_id": uid}, {"$set": {"verification_status": "suspended", "status": "suspended"}})
+        await db.users.update_one({"id": uid}, {"$set": {"is_moto_driver": False}})
+        await create_notification(uid, "driver_suspended", "Kont Chofè Moto ou sispann.", "")
+    return {"message": "ok"}
 
 
-@router.post("/staff/create-account")
-async def create_staff_account(data: StaffCreateIn, admin: dict = Depends(get_admin)):
-    """Creates a BRAND NEW account with Staff role directly — for when the
-    admin is hiring/onboarding someone who doesn't already have a DealLakay
-    account, and wants to hand them a working login themselves rather than
-    have them self-register. Full-admin only (not delegable to Staff)."""
-    bad = [p for p in data.permissions if p not in STAFF_PERMISSIONS]
-    if bad:
-        raise HTTPException(status_code=400, detail=f"Otorizasyon pa valab: {', '.join(bad)}")
-    if len(data.password) < 8:
-        raise HTTPException(status_code=400, detail="Modpas la dwe gen omwen 8 karaktè.")
-    email = data.email.lower().strip()
-    username = data.username.lower().strip()
-    if await db.users.find_one({"email": email}):
-        raise HTTPException(status_code=400, detail="Email sa a deja itilize.")
-    if await db.users.find_one({"username": username}):
-        raise HTTPException(status_code=400, detail="Non itilizatè sa a deja pran.")
-    uid = str(uuid.uuid4())
-    user = {
-        "id": uid,
-        "full_name": data.full_name.strip(),
-        "username": username,
-        "email": email,
-        "phone": data.phone.strip(),
-        "password_hash": auth_lib.hash_password(data.password),
-        "country": "Ayiti",
-        "department": "",
-        "city": "",
-        "role": "staff",
-        "permissions": data.permissions,
+# ---------------- Transport: Stations ----------------
+class StationIn(BaseModel):
+    name: str
+    city: str
+    area: str = ""
+    description: str = ""
+
+
+@router.get("/transport/stations")
+async def admin_list_stations(admin: dict = Depends(get_admin)):
+    return await db.transport_stations.find({}, NO_ID).sort("name", 1).to_list(200)
+
+
+@router.post("/transport/stations")
+async def admin_create_station(data: StationIn, admin: dict = Depends(get_admin)):
+    station = {
+        "id": str(uuid.uuid4()),
+        **data.model_dump(),
         "status": "active",
-        # Admin is creating and vouching for this account directly, so it's
-        # treated as verified from the start — no need to make a new staff
-        # member click a verification email link before they can log in.
-        "email_verified": True,
-        "phone_verified": False,
-        "is_seller": False,
-        "is_technician": False,
-        "avatar": "",
-        "token_version": 0,
-        "terms_accepted": True,
         "created_at": now_iso(),
+        "updated_at": now_iso(),
     }
-    await db.users.insert_one(dict(user))
-    return {"message": "Kont anplwaye kreye.", "username": username, "email": email}
+    await db.transport_stations.insert_one(dict(station))
+    return {k: v for k, v in station.items() if k != "_id"}
 
 
-@router.get("/staff-permissions")
-async def list_staff_permissions(admin: dict = Depends(get_admin)):
-    """Full-admin only — the fixed list of scopes available to grant."""
-    return STAFF_PERMISSIONS
-
-
-@router.get("/staff")
-async def list_staff(admin: dict = Depends(get_admin)):
-    staff = await db.users.find({"role": "staff"}, {"_id": 0, "password_hash": 0}).to_list(200)
-    return staff
-
-
-@router.post("/staff")
-async def add_staff(data: StaffIn, admin: dict = Depends(get_admin)):
-    """Promotes an EXISTING user account to Staff with the given
-    permissions. Never grants is_seller/is_technician — Staff/Admin stay
-    entirely outside the marketplace roles, on purpose."""
-    bad = [p for p in data.permissions if p not in STAFF_PERMISSIONS]
-    if bad:
-        raise HTTPException(status_code=400, detail=f"Otorizasyon pa valab: {', '.join(bad)}")
-    u = await db.users.find_one({"username": data.username})
-    if not u:
-        raise HTTPException(status_code=404, detail="Itilizatè pa jwenn.")
-    if u.get("role") == "admin":
-        raise HTTPException(status_code=400, detail="Itilizatè sa a se deja yon Admin total.")
-    await db.users.update_one({"id": u["id"]}, {"$set": {"role": "staff", "permissions": data.permissions}})
-    await create_notification(u["id"], "staff_granted", "Ou vin yon manm ekip DealLakay ak dwa administratif limite.", "")
+@router.put("/transport/stations/{sid}")
+async def admin_update_station(sid: str, data: StationIn, admin: dict = Depends(get_admin)):
+    s = await db.transport_stations.find_one({"id": sid})
+    if not s:
+        raise HTTPException(status_code=404, detail="Pa jwenn.")
+    await db.transport_stations.update_one({"id": sid}, {"$set": {**data.model_dump(), "updated_at": now_iso()}})
     return {"message": "ok"}
 
 
-@router.put("/staff/{uid}")
-async def update_staff(uid: str, data: StaffIn, admin: dict = Depends(get_admin)):
-    bad = [p for p in data.permissions if p not in STAFF_PERMISSIONS]
-    if bad:
-        raise HTTPException(status_code=400, detail=f"Otorizasyon pa valab: {', '.join(bad)}")
-    u = await db.users.find_one({"id": uid})
-    if not u or u.get("role") != "staff":
-        raise HTTPException(status_code=404, detail="Manm ekip pa jwenn.")
-    await db.users.update_one({"id": uid}, {"$set": {"permissions": data.permissions}})
-    return {"message": "ok"}
-
-
-@router.delete("/staff/{uid}")
-async def remove_staff(uid: str, admin: dict = Depends(get_admin)):
-    """Revokes Staff status entirely — back to a normal Client account."""
-    u = await db.users.find_one({"id": uid})
-    if not u or u.get("role") != "staff":
-        raise HTTPException(status_code=404, detail="Manm ekip pa jwenn.")
-    await db.users.update_one({"id": uid}, {"$set": {"role": "user", "permissions": []}})
+@router.put("/transport/stations/{sid}/{action}")
+async def admin_station_toggle(sid: str, action: str, admin: dict = Depends(get_admin)):
+    if action not in ("activate", "deactivate"):
+        raise HTTPException(status_code=400, detail="Aksyon pa valab.")
+    s = await db.transport_stations.find_one({"id": sid})
+    if not s:
+        raise HTTPException(status_code=404, detail="Pa jwenn.")
+    new_status = "active" if action == "activate" else "inactive"
+    await db.transport_stations.update_one({"id": sid}, {"$set": {"status": new_status, "updated_at": now_iso()}})
     return {"message": "ok"}
