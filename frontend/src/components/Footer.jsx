@@ -5,6 +5,11 @@ import Logo from "./Logo";
 import { useApp } from "@/contexts/AppContext";
 import { getCatName } from "@/i18n";
 import { ANDROID_APK_URL, GUIDE_PDF_URL } from "@/config/betaLinks";
+import api from "@/lib/api";
+
+// Fire-and-forget — never blocks or delays the actual download, and a
+// failed tracking call (offline, etc.) is silently ignored.
+const trackApkDownload = () => { api.post("/track/apk-download").catch(() => {}); };
 
 export default function Footer() {
   const { categories, lang, branding } = useApp();
@@ -13,6 +18,7 @@ export default function Footer() {
       <div className="max-w-7xl mx-auto px-4 lg:px-6 pt-8 space-y-3">
         <a
           href={ANDROID_APK_URL}
+          onClick={trackApkDownload}
           data-testid="footer-apk-download"
           className="flex items-center gap-3 bg-primary text-primary-foreground rounded-2xl p-5"
         >
