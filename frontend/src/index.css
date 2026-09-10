@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Manrope:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Manrope:wght@400;500;600;700&family=Dancing+Script:wght@700&family=Alex+Brush&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -60,6 +60,16 @@ h1, h2, h3, h4, h5, .font-display {
     to { opacity: 1; transform: translateY(0); }
 }
 .animate-fade-up { animation: fadeUp 0.5s ease both; }
+
+.slogan-script {
+    /* "Brush Script MT" is a system font (bundled with Windows/Office) —
+       not a web font, so it can't be loaded from Google Fonts or any CDN.
+       "Alex Brush" is a Google Font with a similar casual brush-pen look,
+       so every visitor sees a consistent, close match rather than a
+       different fallback depending on their device. */
+    font-family: "Alex Brush", "Dancing Script", cursive;
+    font-weight: 400;
+}
 
 .hero-grid {
     background-color: #F3F7FF;
