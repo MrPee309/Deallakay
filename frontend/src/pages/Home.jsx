@@ -58,20 +58,35 @@ export default function Home() {
             positioned against the SECTION itself — so it spans the full
             height of the blue hero area edge-to-edge (top and bottom),
             unaffected by the text column's own vertical padding. */}
-        <div className="hidden lg:block absolute inset-y-0 right-0 w-1/2">
+        <div className="hidden lg:block absolute inset-y-0 right-0 w-[78%]">
+          {/* SVG wave-shaped mask: fades the image smoothly into the hero's
+              light-blue background along a curved boundary (not a straight
+              line, not a vignette on all sides) — the woman and phone stay
+              fully visible; only the sky/mountain area on the left blends
+              away. The gradient's fully-transparent zone extends past
+              where the curve itself wobbles, so no hard edge is ever
+              visible along the curve. */}
+          <svg width="0" height="0" aria-hidden="true">
+            <defs>
+              <mask id="heroWaveMask" maskContentUnits="objectBoundingBox">
+                <linearGradient id="heroWaveGrad" x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0%" stopColor="black" />
+                  <stop offset="24%" stopColor="black" />
+                  <stop offset="42%" stopColor="white" />
+                </linearGradient>
+                <path
+                  d="M -0.1,-0.1 C 0.1,0.08 0.05,0.22 0.14,0.35 C 0.22,0.48 0.09,0.62 0.16,0.78 C 0.21,0.88 0.14,0.98 0.18,1.1 L 1.1,1.1 L 1.1,-0.1 Z"
+                  fill="url(#heroWaveGrad)"
+                />
+              </mask>
+            </defs>
+          </svg>
           <img
             src="/images/home/hero-visual.jpg"
             alt="Jwenn sèvis ak pwodwi toupre w ann Ayiti"
             data-testid="home-hero-visual"
-            className="absolute inset-0 w-full h-full object-cover"
-          />
-          {/* Fades only the LEFT edge into the hero's light-blue background —
-              matching the reference exactly: the photo blends into the text
-              column on its left but stays full-bleed/sharp on every other
-              side, not a vignette on all 4 sides. */}
-          <div
-            className="absolute inset-y-0 left-0 w-1/3 pointer-events-none"
-            style={{ background: "linear-gradient(to right, #F3F7FF, transparent)" }}
+            className="absolute inset-0 w-full h-full object-cover object-right"
+            style={{ WebkitMaskImage: "url(#heroWaveMask)", maskImage: "url(#heroWaveMask)" }}
           />
         </div>
 
@@ -115,7 +130,7 @@ export default function Home() {
               <img
                 src="/images/home/hero-visual.jpg"
                 alt="Jwenn sèvis ak pwodwi toupre w ann Ayiti"
-                className="absolute inset-0 w-full h-full object-cover rounded-2xl"
+                className="absolute inset-0 w-full h-full object-cover object-right rounded-2xl"
               />
             </div>
             <div className="hidden lg:block" />
@@ -286,7 +301,7 @@ export default function Home() {
               </div>
             </div>
           ))}
-          <p className="font-display -rotate-12 inline-block text-base text-foreground flex-1 min-w-[220px] text-right" data-testid="home-community-slogan">
+          <p className="slogan-script -rotate-12 inline-block text-2xl text-foreground flex-1 min-w-[220px] text-right" data-testid="home-community-slogan">
             DealLakay, plis pase yon sit, se yon kominote! <span aria-hidden="true">💙</span>
           </p>
         </section>
