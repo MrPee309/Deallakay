@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { toast } from "sonner";
-import { Users, Store, Package, DollarSign, Flag, ShieldCheck, Loader2, Search, Ban, RotateCcw, Trash2, Check, X, Plus, Eye, Building2 } from "lucide-react";
+import { Users, Store, Package, DollarSign, Flag, ShieldCheck, Loader2, Search, Ban, RotateCcw, Trash2, Check, X, Plus, Eye, Building2, Bike, MapPin } from "lucide-react";
 import api, { apiError } from "@/lib/api";
 import { useApp } from "@/contexts/AppContext";
 import { getCatName } from "@/i18n";
@@ -51,6 +51,8 @@ export default function AdminDashboard() {
           <TabsTrigger value="supplier-verifications" data-testid="admin-tab-supplier-verif">Verifikasyon Founisè</TabsTrigger>
           <TabsTrigger value="categories" data-testid="admin-tab-cats">Kategori</TabsTrigger>
           <TabsTrigger value="settings" data-testid="admin-tab-settings">Paramèt</TabsTrigger>
+          <TabsTrigger value="transport-drivers" data-testid="admin-tab-transport-drivers">Chofè Transpò</TabsTrigger>
+          <TabsTrigger value="transport-stations" data-testid="admin-tab-transport-stations">Stasyon</TabsTrigger>
         </TabsList>
         <TabsContent value="products"><AdminProducts /></TabsContent>
         <TabsContent value="users"><AdminUsers /></TabsContent>
@@ -61,6 +63,8 @@ export default function AdminDashboard() {
         <TabsContent value="supplier-verifications"><AdminSupplierVerifications /></TabsContent>
         <TabsContent value="categories"><AdminCategories /></TabsContent>
         <TabsContent value="settings"><AdminSettings /></TabsContent>
+        <TabsContent value="transport-drivers"><AdminTransportDrivers /></TabsContent>
+        <TabsContent value="transport-stations"><AdminTransportStations /></TabsContent>
       </Tabs>
     </div>
   );
@@ -281,6 +285,105 @@ function AdminCategories() {
           <div className="flex gap-2 max-w-xs"><Input value={subInputs[c.id] || ""} onChange={(e) => setSubInputs((s) => ({ ...s, [c.id]: e.target.value }))} placeholder="Sou-kategori" className="h-9" /><Button size="sm" onClick={() => addSub(c.id)}><Plus className="w-4 h-4" /></Button></div>
         </div>
       ))}
+    </div>
+  );
+}
+
+function AdminTransportDrivers() {
+  const [items, setItems] = useState([]);
+  const load = async () => { const { data } = await api.get("/admin/transport/drivers"); setItems(data); };
+  useEffect(() => { load(); }, []);
+  const act = async (uid, action) => { await api.put(`/admin/transport/drivers/${uid}/${action}`); toast.success("Fèt"); load(); };
+  const pending = items.filter((d) => d.verification_status === "pending");
+  const others = items.filter((d) => d.verification_status !== "pending");
+  return (
+    <div className="space-y-6">
+      <div>
+        <h3 className="font-semibold text-sm mb-2">An Atant ({pending.length})</h3>
+        {pending.length === 0 && <div className="text-center py-6 text-muted-foreground text-sm">Pa gen demann Chofè an atant.</div>}
+        {pending.map((d) => (
+          <div key={d.id} className="bg-card border border-border rounded-xl p-3 flex items-center gap-3 mb-2" data-testid={`transport-driver-${d.user_id}`}>
+            <Bike className="w-5 h-5 text-primary shrink-0" />
+            <div className="flex-1">
+              <div className="font-semibold text-sm">User ID: {d.user_id}</div>
+              <div className="text-xs text-muted-foreground">
+                {d.motorcycle?.brand} {d.motorcycle?.model} · {d.city}{d.area ? `, ${d.area}` : ""} · {timeAgo(d.created_at)}
+              </div>
+            </div>
+            <Button size="sm" className="bg-emerald-500" onClick={() => act(d.user_id, "approve")} data-testid={`transport-driver-approve-${d.user_id}`}><Check className="w-4 h-4" /></Button>
+            <Button size="sm" variant="outline" className="text-destructive" onClick={() => act(d.user_id, "reject")} data-testid={`transport-driver-reject-${d.user_id}`}><X className="w-4 h-4" /></Button>
+          </div>
+        ))}
+      </div>
+      <div>
+        <h3 className="font-semibold text-sm mb-2">Tout Lòt Chofè</h3>
+        {others.map((d) => (
+          <div key={d.id} className="bg-card border border-border rounded-xl p-3 flex items-center gap-3 mb-2" data-testid={`transport-driver-other-${d.user_id}`}>
+            <Bike className="w-5 h-5 text-muted-foreground shrink-0" />
+            <div className="flex-1">
+              <div className="font-semibold text-sm">User ID: {d.user_id}</div>
+              <div className="text-xs text-muted-foreground">{d.verification_status} · {d.status} · {d.city}</div>
+            </div>
+            {d.verification_status === "verified" && (
+              <Button size="sm" variant="outline" className="text-destructive" onClick={() => act(d.user_id, "suspend")} data-testid={`transport-driver-suspend-${d.user_id}`}>Sispann</Button>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function AdminTransportStations() {
+  const [items, setItems] = useState([]);
+  const [name, setName] = useState("");
+  const [city, setCity] = useState("");
+  const [area, setArea] = useState("");
+  const [saving, setSaving] = useState(false);
+  const load = async () => { const { data } = await api.get("/admin/transport/stations"); setItems(data); };
+  useEffect(() => { load(); }, []);
+
+  const create = async () => {
+    if (!name.trim() || !city.trim()) return toast.error("Antre non ak vil stasyon an.");
+    setSaving(true);
+    try {
+      await api.post("/admin/transport/stations", { name: name.trim(), city: city.trim(), area: area.trim() });
+      toast.success("Stasyon kreye.");
+      setName(""); setCity(""); setArea(""); load();
+    } catch (e) { toast.error(apiError(e)); } finally { setSaving(false); }
+  };
+
+  const toggle = async (s) => {
+    await api.put(`/admin/transport/stations/${s.id}/${s.status === "active" ? "deactivate" : "activate"}`);
+    load();
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="bg-card border border-border rounded-xl p-4 space-y-3">
+        <h3 className="font-semibold flex items-center gap-2"><MapPin className="w-4 h-4 text-primary" /> Kreye yon Stasyon</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div><Label>Non Stasyon</Label><Input value={name} onChange={(e) => setName(e.target.value)} className="mt-1.5" data-testid="station-name" /></div>
+          <div><Label>Vil</Label><Input value={city} onChange={(e) => setCity(e.target.value)} className="mt-1.5" data-testid="station-city" /></div>
+          <div><Label>Zòn (opsyonèl)</Label><Input value={area} onChange={(e) => setArea(e.target.value)} className="mt-1.5" data-testid="station-area" /></div>
+        </div>
+        <Button onClick={create} disabled={saving} data-testid="station-create-btn">{saving ? <Loader2 className="w-4 h-4 animate-spin" /> : "Kreye Stasyon"}</Button>
+      </div>
+      <div className="space-y-2">
+        {items.length === 0 && <div className="text-center py-6 text-muted-foreground text-sm">Pa gen stasyon ankò.</div>}
+        {items.map((s) => (
+          <div key={s.id} className="bg-card border border-border rounded-xl p-3 flex items-center gap-3" data-testid={`station-${s.id}`}>
+            <MapPin className="w-5 h-5 text-primary shrink-0" />
+            <div className="flex-1">
+              <div className="font-semibold text-sm">{s.name}</div>
+              <div className="text-xs text-muted-foreground">{s.city}{s.area ? `, ${s.area}` : ""} · {s.status}</div>
+            </div>
+            <Button size="sm" variant="outline" onClick={() => toggle(s)} data-testid={`station-toggle-${s.id}`}>
+              {s.status === "active" ? "Dezaktive" : "Aktive"}
+            </Button>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

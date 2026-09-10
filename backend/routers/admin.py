@@ -14,7 +14,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 
 from seed_data import DEFAULT_SETTINGS
-from shared import db, NO_ID, slugify, get_admin, create_notification
+from shared import db, NO_ID, slugify, get_admin, create_notification, now_iso
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -267,4 +267,78 @@ async def admin_verify_supplier(vid: str, decision: str, admin: dict = Depends(g
     if decision == "approve":
         await db.suppliers.update_one({"id": v["supplier_id"]}, {"$set": {"verified": True}})
         await create_notification(v["owner_id"], "verified", f"'{v['company_name']}' se yon Founisè Verifye kounye a!", "")
+    return {"message": "ok"}
+
+
+# ---------------- Transport: Driver applications ----------------
+@router.get("/transport/drivers")
+async def admin_list_drivers(admin: dict = Depends(get_admin)):
+    return await db.transport_drivers.find({}, NO_ID).sort("created_at", -1).to_list(500)
+
+
+@router.put("/transport/drivers/{uid}/{action}")
+async def admin_driver_action(uid: str, action: str, admin: dict = Depends(get_admin)):
+    if action not in ("approve", "reject", "suspend"):
+        raise HTTPException(status_code=400, detail="Aksyon pa valab.")
+    d = await db.transport_drivers.find_one({"user_id": uid})
+    if not d:
+        raise HTTPException(status_code=404, detail="Pa jwenn.")
+    if action == "approve":
+        await db.transport_drivers.update_one({"user_id": uid}, {"$set": {"verification_status": "verified"}})
+        await db.users.update_one({"id": uid}, {"$set": {"is_moto_driver": True}})
+        await create_notification(uid, "driver_approved", "Demann Chofè Moto ou apwouve — ou ka vin disponib kounye a!", "")
+    elif action == "reject":
+        await db.transport_drivers.update_one({"user_id": uid}, {"$set": {"verification_status": "rejected"}})
+        await create_notification(uid, "driver_rejected", "Demann Chofè Moto ou rejte.", "")
+    else:  # suspend
+        await db.transport_drivers.update_one({"user_id": uid}, {"$set": {"verification_status": "suspended", "status": "suspended"}})
+        await db.users.update_one({"id": uid}, {"$set": {"is_moto_driver": False}})
+        await create_notification(uid, "driver_suspended", "Kont Chofè Moto ou sispann.", "")
+    return {"message": "ok"}
+
+
+# ---------------- Transport: Stations ----------------
+class StationIn(BaseModel):
+    name: str
+    city: str
+    area: str = ""
+    description: str = ""
+
+
+@router.get("/transport/stations")
+async def admin_list_stations(admin: dict = Depends(get_admin)):
+    return await db.transport_stations.find({}, NO_ID).sort("name", 1).to_list(200)
+
+
+@router.post("/transport/stations")
+async def admin_create_station(data: StationIn, admin: dict = Depends(get_admin)):
+    station = {
+        "id": str(uuid.uuid4()),
+        **data.model_dump(),
+        "status": "active",
+        "created_at": now_iso(),
+        "updated_at": now_iso(),
+    }
+    await db.transport_stations.insert_one(dict(station))
+    return {k: v for k, v in station.items() if k != "_id"}
+
+
+@router.put("/transport/stations/{sid}")
+async def admin_update_station(sid: str, data: StationIn, admin: dict = Depends(get_admin)):
+    s = await db.transport_stations.find_one({"id": sid})
+    if not s:
+        raise HTTPException(status_code=404, detail="Pa jwenn.")
+    await db.transport_stations.update_one({"id": sid}, {"$set": {**data.model_dump(), "updated_at": now_iso()}})
+    return {"message": "ok"}
+
+
+@router.put("/transport/stations/{sid}/{action}")
+async def admin_station_toggle(sid: str, action: str, admin: dict = Depends(get_admin)):
+    if action not in ("activate", "deactivate"):
+        raise HTTPException(status_code=400, detail="Aksyon pa valab.")
+    s = await db.transport_stations.find_one({"id": sid})
+    if not s:
+        raise HTTPException(status_code=404, detail="Pa jwenn.")
+    new_status = "active" if action == "activate" else "inactive"
+    await db.transport_stations.update_one({"id": sid}, {"$set": {"status": new_status, "updated_at": now_iso()}})
     return {"message": "ok"}

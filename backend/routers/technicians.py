@@ -63,6 +63,8 @@ async def get_specialties():
 
 @router.post("/technician/become")
 async def become_technician(data: BecomeTechnicianIn, user: dict = Depends(get_current_user)):
+    if user.get("role") in ("admin", "staff"):
+        raise HTTPException(status_code=403, detail="Kont Admin/Anplwaye pa ka vin Teknisyen — se yon wòl sipèvizyon, pa yon patisipan mache a.")
     if not data.accept_technician_terms:
         raise HTTPException(status_code=400, detail="Ou dwe aksepte règ teknisyen yo.")
     if not user.get("email_verified"):
@@ -77,7 +79,7 @@ async def become_technician(data: BecomeTechnicianIn, user: dict = Depends(get_c
         await db.technician_profiles.insert_one({
             "id": str(uuid.uuid4()),
             "user_id": user["id"],
-            "status": "active",
+            "status": "pending",
             "technician_verified": False,
             "specialties": data.specialties,
             "service_departments": data.service_departments,
@@ -92,8 +94,10 @@ async def become_technician(data: BecomeTechnicianIn, user: dict = Depends(get_c
             "review_count": 0,
             "date_joined": now_iso(),
         })
-    await db.users.update_one({"id": user["id"]}, {"$set": {"is_technician": True}})
-    return {"message": "Ou se yon teknisyen kounye a!", "status": "active"}
+    # is_technician is intentionally NOT set here — same reasoning as
+    # Sellers: the account only gains technician capabilities once an
+    # admin approves this request, not immediately on self-registration.
+    return {"message": "Demann ou voye! Li an atant apwobasyon admin anvan ou vin yon Teknisyen.", "status": "pending"}
 
 
 @router.get("/technician/profile")

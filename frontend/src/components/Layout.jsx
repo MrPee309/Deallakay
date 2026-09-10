@@ -2,6 +2,7 @@ import React from "react";
 import { Outlet, Navigate, useLocation } from "react-router-dom";
 import Header from "./Header";
 import Footer from "./Footer";
+import BetaAnnouncementBar from "./BetaAnnouncementBar";
 import { useAuth } from "@/contexts/AuthContext";
 import { Loader2 } from "lucide-react";
 
@@ -9,6 +10,7 @@ export function Layout({ hideFooter }) {
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <Header />
+      <BetaAnnouncementBar />
       <main className="flex-1">
         <Outlet />
       </main>
@@ -30,6 +32,9 @@ export function ProtectedRoute({ children, adminOnly }) {
   const loc = useLocation();
   if (user === null) return <FullLoader />;
   if (!user) return <Navigate to="/login" state={{ from: loc.pathname }} replace />;
-  if (adminOnly && user.role !== "admin") return <Navigate to="/" replace />;
+  // "Staff" is a limited-permission admin helper — allowed into the Admin
+  // Panel route itself; AdminDashboard.jsx shows them only the tabs their
+  // specific permissions cover, backend enforces the rest per-endpoint.
+  if (adminOnly && user.role !== "admin" && user.role !== "staff") return <Navigate to="/" replace />;
   return children;
 }
