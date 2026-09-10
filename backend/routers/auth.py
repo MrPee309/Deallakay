@@ -22,7 +22,7 @@ import auth as auth_lib
 import email_service
 import security
 from seed_data import DEPARTMENTS
-from shared import db, now_iso, get_current_user, public_user
+from shared import db, now_iso, get_current_user, public_user, _heal_admin_staff_roles
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -196,11 +196,17 @@ async def login(data: LoginIn, _rl=Depends(security.rate_limit("login", RL_LOGIN
     if not user.get("email_verified"):
         raise HTTPException(status_code=403, detail="Verifye email ou avan ou konekte.")
     token = auth_lib.create_access_token(user["id"], user["username"], user["role"], user.get("token_version", 0))
+    user = await _heal_admin_staff_roles(user)
     return {"access_token": token, "user": public_user(user)}
 
 
 @router.get("/me")
 async def me(user: dict = Depends(get_current_user)):
+    user = await _heal_admin_staff_roles(user)
+    # Reused for the admin dashboard's "active users" counts (today/7d/30d)
+    # — /me is already called by both the website and mobile app on every
+    # load, so this needs no separate tracking system.
+    await db.users.update_one({"id": user["id"]}, {"$set": {"last_active": now_iso()}})
     return public_user(user)
 
 
