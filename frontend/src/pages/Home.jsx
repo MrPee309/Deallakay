@@ -58,6 +58,24 @@ export default function Home() {
             positioned against the SECTION itself — so it spans the full
             height of the blue hero area edge-to-edge (top and bottom),
             unaffected by the text column's own vertical padding. */}
+        {/* Tier 2 — tablet landscape / small desktop (1024–1279px, e.g.
+            iPad 11"–12.9" in landscape): same side-by-side layout as the
+            large-desktop tier, but with a simple straight left-edge fade
+            instead of the elaborate wave mask — the curved mask's fixed
+            proportions don't hold up well at this narrower width. */}
+        <div className="hidden lg:block xl:hidden absolute inset-y-0 right-0 w-1/2">
+          <img
+            src="/images/home/hero-visual.jpg"
+            alt="Jwenn sèvis ak pwodwi toupre w ann Ayiti"
+            className="absolute inset-0 w-full h-full object-cover object-right"
+          />
+          <div
+            className="absolute inset-y-0 left-0 w-1/3 pointer-events-none"
+            style={{ background: "linear-gradient(to right, #F3F7FF, transparent)" }}
+          />
+        </div>
+
+        {/* Tier 3 — large desktop (≥1280px): full wave-mask treatment. */}
         <div className="hidden xl:block absolute inset-y-0 right-0 w-[78%]">
           {/* SVG wave-shaped mask: fades the image smoothly into the hero's
               light-blue background along a curved boundary (not a straight
@@ -91,7 +109,7 @@ export default function Home() {
         </div>
 
         <div className="max-w-7xl mx-auto px-4 lg:px-6 py-14 md:py-20 relative">
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-10 xl:gap-8 items-center">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-8 items-center">
             <div className="max-w-3xl">
               <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-white bg-primary px-3 py-1 rounded-full mb-5">
                 <Tag className="w-3.5 h-3.5" /> Marketplace teknoloji ann Ayiti
@@ -126,14 +144,14 @@ export default function Home() {
                 image renders full-height above, outside this padded flow.
                 On mobile/tablet (no room for a side-by-side image), fall
                 back to a normal inline image instead of hiding it. */}
-            <div className="relative xl:hidden w-full min-h-[280px]">
+            <div className="relative lg:hidden w-full min-h-[280px]">
               <img
                 src="/images/home/hero-visual.jpg"
                 alt="Jwenn sèvis ak pwodwi toupre w ann Ayiti"
                 className="absolute inset-0 w-full h-full object-cover object-right rounded-2xl"
               />
             </div>
-            <div className="hidden xl:block" />
+            <div className="hidden lg:block" />
           </div>
         </div>
       </section>
