@@ -58,7 +58,7 @@ export default function Home() {
             positioned against the SECTION itself — so it spans the full
             height of the blue hero area edge-to-edge (top and bottom),
             unaffected by the text column's own vertical padding. */}
-        <div className="hidden lg:block absolute inset-y-0 right-0 w-[78%]">
+        <div className="hidden xl:block absolute inset-y-0 right-0 w-[78%]">
           {/* SVG wave-shaped mask: fades the image smoothly into the hero's
               light-blue background along a curved boundary (not a straight
               line, not a vignette on all sides) — the woman and phone stay
@@ -91,7 +91,7 @@ export default function Home() {
         </div>
 
         <div className="max-w-7xl mx-auto px-4 lg:px-6 py-14 md:py-20 relative">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-8 items-center">
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-10 xl:gap-8 items-center">
             <div className="max-w-3xl">
               <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-white bg-primary px-3 py-1 rounded-full mb-5">
                 <Tag className="w-3.5 h-3.5" /> Marketplace teknoloji ann Ayiti
@@ -126,14 +126,14 @@ export default function Home() {
                 image renders full-height above, outside this padded flow.
                 On mobile/tablet (no room for a side-by-side image), fall
                 back to a normal inline image instead of hiding it. */}
-            <div className="relative lg:hidden w-full min-h-[280px]">
+            <div className="relative xl:hidden w-full min-h-[280px]">
               <img
                 src="/images/home/hero-visual.jpg"
                 alt="Jwenn sèvis ak pwodwi toupre w ann Ayiti"
                 className="absolute inset-0 w-full h-full object-cover object-right rounded-2xl"
               />
             </div>
-            <div className="hidden lg:block" />
+            <div className="hidden xl:block" />
           </div>
         </div>
       </section>
