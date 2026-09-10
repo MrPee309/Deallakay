@@ -6,9 +6,19 @@ import api from "@/lib/api";
 import { useApp } from "@/contexts/AppContext";
 import { getCatName } from "@/i18n";
 import ProductCard from "@/components/ProductCard";
-import HeroSlider from "@/components/HeroSlider";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+
+// Real product photos (cropped from the DealLakay reference design) for the
+// categories that have a matching real backend category type — "tools" has
+// no good photo match in the reference, so it keeps its lucide icon instead
+// of forcing a mismatched image onto it.
+const CATEGORY_PHOTOS = {
+  phone: "/images/home/cat-phone.jpg",
+  laptop: "/images/home/cat-laptop.jpg",
+  parts: "/images/home/cat-parts.jpg",
+  accessories: "/images/home/cat-accessories.jpg",
+};
 
 export default function Home() {
   const { t, categories, lang, safetyMessages } = useApp();
@@ -44,10 +54,31 @@ export default function Home() {
     <div>
       {/* Hero */}
       <section className="relative hero-grid border-b border-border overflow-hidden">
-        <div className="max-w-7xl mx-auto px-4 lg:px-6 py-14 md:py-20">
+        {/* Image is a sibling of the padded text container, absolutely
+            positioned against the SECTION itself — so it spans the full
+            height of the blue hero area edge-to-edge (top and bottom),
+            unaffected by the text column's own vertical padding. */}
+        <div className="hidden lg:block absolute inset-y-0 right-0 w-1/2">
+          <img
+            src="/images/home/hero-visual.jpg"
+            alt="Jwenn sèvis ak pwodwi toupre w ann Ayiti"
+            data-testid="home-hero-visual"
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+          {/* Fades only the LEFT edge into the hero's light-blue background —
+              matching the reference exactly: the photo blends into the text
+              column on its left but stays full-bleed/sharp on every other
+              side, not a vignette on all 4 sides. */}
+          <div
+            className="absolute inset-y-0 left-0 w-1/3 pointer-events-none"
+            style={{ background: "linear-gradient(to right, #F3F7FF, transparent)" }}
+          />
+        </div>
+
+        <div className="max-w-7xl mx-auto px-4 lg:px-6 py-14 md:py-20 relative">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-8 items-center">
             <div className="max-w-3xl">
-              <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary bg-primary/10 px-3 py-1 rounded-full mb-5">
+              <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-white bg-primary px-3 py-1 rounded-full mb-5">
                 <Tag className="w-3.5 h-3.5" /> Marketplace teknoloji ann Ayiti
               </span>
               <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl font-800 tracking-tight leading-[1.05]" style={{ fontWeight: 800 }}>
@@ -75,29 +106,123 @@ export default function Home() {
               </form>
             </div>
 
-            <HeroSlider />
+            {/* Empty spacer column on large screens — reserves the grid slot
+                so the text column stays the same width as before; the real
+                image renders full-height above, outside this padded flow.
+                On mobile/tablet (no room for a side-by-side image), fall
+                back to a normal inline image instead of hiding it. */}
+            <div className="relative lg:hidden w-full min-h-[280px]">
+              <img
+                src="/images/home/hero-visual.jpg"
+                alt="Jwenn sèvis ak pwodwi toupre w ann Ayiti"
+                className="absolute inset-0 w-full h-full object-cover rounded-2xl"
+              />
+            </div>
+            <div className="hidden lg:block" />
           </div>
         </div>
       </section>
 
       <div className="max-w-7xl mx-auto px-4 lg:px-6">
-        {/* Categories */}
         <section className="py-10">
           <h2 className="font-display text-2xl font-bold mb-5">{t("browseCategories")}</h2>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-4">
             {categories.map((c) => {
               const pn = c.icon?.replace(/(^\w|-\w)/g, (m) => m.replace("-", "").toUpperCase());
               const Ico = Icons[pn] || Icons.Tag;
+              const photo = CATEGORY_PHOTOS[c.type];
               return (
                 <Link key={c.id} to={`/browse?category=${c.type}`} data-testid={`home-cat-${c.type}`}
-                  className="group bg-card border border-border rounded-xl p-5 flex flex-col items-start gap-3 hover:-translate-y-1 hover:shadow-md hover:border-primary/40 transition-all">
-                  <span className="w-11 h-11 rounded-xl bg-primary/10 text-primary flex items-center justify-center group-hover:bg-primary group-hover:text-white transition-colors">
-                    <Ico className="w-5 h-5" />
-                  </span>
-                  <span className="font-semibold text-sm">{getCatName(c, lang)}</span>
+                  className="group bg-card border border-border rounded-2xl p-4 flex flex-col items-center justify-center gap-3 aspect-square text-center hover:-translate-y-1 hover:shadow-md hover:border-primary/40 transition-all">
+                  {photo ? (
+                    <img src={photo} alt={getCatName(c, lang)} className="w-full h-16 sm:h-20 object-contain" />
+                  ) : (
+                    <span className="w-14 h-14 rounded-xl bg-primary/10 text-primary flex items-center justify-center group-hover:bg-primary group-hover:text-white transition-colors">
+                      <Ico className="w-7 h-7" />
+                    </span>
+                  )}
+                  <span className="font-semibold text-xs sm:text-sm leading-tight">{getCatName(c, lang)}</span>
                 </Link>
               );
             })}
+            <Link to="/browse" data-testid="home-cat-more"
+              className="group bg-primary/5 border border-dashed border-primary/30 rounded-2xl p-4 flex flex-col items-center justify-center gap-3 aspect-square text-center hover:bg-primary/10 transition-all">
+              <span className="w-14 h-14 rounded-xl bg-primary text-white flex items-center justify-center">
+                <Icons.Plus className="w-7 h-7" />
+              </span>
+              <span className="font-semibold text-xs sm:text-sm">Plis</span>
+            </Link>
+          </div>
+        </section>
+
+        {/* Biznis Lokal + Location discovery */}
+        <section className="pb-10 grid grid-cols-1 lg:grid-cols-5 gap-4">
+          <div className="lg:col-span-3 bg-gradient-to-br from-primary to-blue-800 rounded-2xl overflow-hidden relative text-white">
+            <div className="relative z-10 p-6 md:p-8 grid grid-cols-1 sm:grid-cols-2 gap-6 items-center">
+              <div>
+                <h2 className="font-display text-2xl font-bold leading-tight">
+                  Biznis lokal tou sou <span className="text-secondary">DealLakay</span>!
+                </h2>
+                <p className="text-sm text-white/85 mt-3">
+                  Restoran, otèl, studio, salon bòte, sant sèvis, ak tout lòt biznis nan vil ou yo. Kreye pwofil ou, atire kliyan, epi fè biznis ou grandi.
+                </p>
+                <a
+                  href="mailto:support@deallakay.com?subject=Enterese%20nan%20Biznis%20Lokal%20DealLakay"
+                  data-testid="home-biznis-lokal-cta"
+                  className="inline-flex items-center gap-2 mt-5 bg-secondary text-secondary-foreground font-semibold text-sm px-5 py-2.5 rounded-full hover:brightness-95 transition"
+                >
+                  Enskri Biznis Ou <ArrowRight className="w-4 h-4" />
+                </a>
+                <div className="flex flex-wrap gap-4 mt-6">
+                  {[
+                    { icon: Icons.Building2, label: "Otèl" },
+                    { icon: Icons.UtensilsCrossed, label: "Restoran" },
+                    { icon: Icons.Camera, label: "Studio" },
+                    { icon: Icons.Scissors, label: "Salon Bòte" },
+                  ].map((s, i) => (
+                    <div key={i} className="flex flex-col items-center gap-1.5">
+                      <span className="w-9 h-9 rounded-full bg-white/15 flex items-center justify-center"><s.icon className="w-4 h-4" /></span>
+                      <span className="text-xs text-white/80">{s.label}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="hidden sm:block relative">
+                <img src="/images/home/biznis-lokal.jpg" alt="Biznis lokal ann Ayiti" className="w-full h-48 object-cover rounded-xl" />
+                <div
+                  className="absolute inset-0 rounded-xl pointer-events-none"
+                  style={{ background: "radial-gradient(ellipse 55% 55% at center, transparent 40%, #1E3A8A 95%)" }}
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="lg:col-span-2 bg-blue-50 rounded-2xl p-6 md:p-8 grid grid-cols-1 sm:grid-cols-2 gap-5 items-center">
+            <div>
+              <h2 className="font-display text-xl font-bold text-primary leading-tight">Jwenn sa w bezwen nan vil ou!</h2>
+              <p className="text-sm text-muted-foreground mt-3">Chwazi zòn ou pou wè tout sèvis ak biznis ki disponib toupre w.</p>
+              <div className="space-y-1.5 mt-4">
+                {["Restoran", "Otèl", "Studio", "Mekanik", "Ak plis ankò..."].map((c, i) => (
+                  <div key={i} className="flex items-center gap-2 text-sm">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" /> {c}
+                  </div>
+                ))}
+              </div>
+              <Link
+                to="/browse"
+                data-testid="home-location-discovery-cta"
+                className="inline-flex items-center gap-2 mt-5 border border-primary text-primary font-semibold text-sm px-4 py-2 rounded-full hover:bg-primary hover:text-white transition"
+              >
+                <Tag className="w-4 h-4" /> Gade Tout
+              </Link>
+            </div>
+            <div className="hidden sm:block relative">
+              <img src="/images/home/location-discovery.jpg" alt="Jwenn sèvis nan vil ou" className="w-full rounded-xl" />
+              <div
+                className="absolute inset-0 rounded-xl pointer-events-none"
+                style={{ background: "radial-gradient(ellipse 60% 60% at center, transparent 45%, #EFF6FF 95%)" }}
+              />
+            </div>
           </div>
         </section>
 
@@ -141,6 +266,29 @@ export default function Home() {
               ))}
             </div>
           </div>
+        </section>
+
+        {/* Trust strip */}
+        <section className="py-8 border-t border-border flex flex-wrap items-center justify-between gap-4">
+          {[
+            { icon: ShieldCheck, title: "Sekirite & Konfyans", sub: "Kont verifye, evalyasyon itilizatè." },
+            { icon: Icons.Truck, title: "Livrezon nan tout Ayiti", sub: "Lokal ak entènasyonal." },
+            { icon: Icons.Smartphone, title: "Aksè fasil sou App la", sub: "Android & iOS." },
+            { icon: Icons.Headphones, title: "Sipò 24/7", sub: "Nou la pou ou." },
+          ].map((f, i) => (
+            <div key={i} className="flex items-center gap-3 flex-1 min-w-[180px]" data-testid={`home-trust-${i}`}>
+              <span className="w-11 h-11 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                <f.icon className="w-5 h-5" />
+              </span>
+              <div>
+                <p className="font-semibold text-sm">{f.title}</p>
+                <p className="text-xs text-muted-foreground">{f.sub}</p>
+              </div>
+            </div>
+          ))}
+          <p className="font-display -rotate-12 inline-block text-base text-foreground flex-1 min-w-[220px] text-right" data-testid="home-community-slogan">
+            DealLakay, plis pase yon sit, se yon kominote! <span aria-hidden="true">💙</span>
+          </p>
         </section>
       </div>
     </div>
