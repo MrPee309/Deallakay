@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Search, MessageCircle, Bell, Menu, Plus, ChevronDown, LogOut, LayoutDashboard, Heart, User, Shield } from "lucide-react";
+import { Search, MessageCircle, Bell, Menu, Plus, ChevronDown, LogOut, LayoutDashboard, Heart, User, Shield, MapPin } from "lucide-react";
 import * as Icons from "lucide-react";
 import Logo from "./Logo";
 import { useApp } from "@/contexts/AppContext";
@@ -11,11 +11,16 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Sheet, SheetTrigger, SheetContent } from "@/components/ui/sheet";
 
 export default function Header() {
-  const { t, categories, lang, changeLang } = useApp();
+  const { t, categories, locations, lang, changeLang } = useApp();
   const { user, logout, notifCount } = useAuth();
   const nav = useNavigate();
   const [q, setQ] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
+
+  const goToLocation = (departmentName) => {
+    if (!departmentName) nav("/browse");
+    else nav(`/browse?department=${encodeURIComponent(departmentName)}`);
+  };
 
   const submitSearch = (e) => {
     e.preventDefault();
@@ -44,6 +49,21 @@ export default function Header() {
           <div className="flex items-center gap-1.5 ml-auto">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
+                <button data-testid="header-location-select" className="hidden sm:flex items-center gap-1 text-sm font-medium px-2.5 py-1.5 rounded-full hover:bg-muted">
+                  <MapPin className="w-4 h-4 text-primary" /> Tout Ayiti <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => goToLocation(null)} data-testid="header-location-all">Tout Ayiti</DropdownMenuItem>
+                <DropdownMenuSeparator />
+                {locations.map((d) => (
+                  <DropdownMenuItem key={d.id} onClick={() => goToLocation(d.name)} data-testid={`header-location-${d.name}`}>{d.name}</DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
                 <button data-testid="lang-switch" className="text-xs font-semibold px-2 py-1 rounded-md hover:bg-muted uppercase">{lang}</button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
@@ -52,11 +72,13 @@ export default function Header() {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <Link to="/sell" className="hidden sm:block">
-              <Button data-testid="header-sell-btn" className="bg-secondary text-secondary-foreground hover:bg-secondary/90 font-semibold rounded-full h-9 px-4 active:scale-95 transition-transform">
-                <Plus className="w-4 h-4 mr-1" /> {t("sell")}
-              </Button>
-            </Link>
+            {!(user?.role === "admin" || user?.role === "staff") && (
+              <Link to="/sell" className="hidden sm:block">
+                <Button data-testid="header-sell-btn" className="bg-secondary text-secondary-foreground hover:bg-secondary/90 font-semibold rounded-full h-9 px-4 active:scale-95 transition-transform">
+                  <Plus className="w-4 h-4 mr-1" /> {t("sell")}
+                </Button>
+              </Link>
+            )}
 
             {user && user.id ? (
               <>
@@ -111,9 +133,11 @@ export default function Header() {
               </SheetTrigger>
               <SheetContent side="right" className="w-72 overflow-y-auto flex flex-col">
                 <div className="flex flex-col gap-1 mt-8">
-                  <Link to="/sell" onClick={() => setMenuOpen(false)} data-testid="mobile-nav-sell" className="text-sm font-semibold px-3 py-2.5 rounded-lg bg-primary text-primary-foreground flex items-center gap-2 mb-2">
-                    <Plus className="w-4 h-4" /> {t("sell")}
-                  </Link>
+                  {!(user?.role === "admin" || user?.role === "staff") && (
+                    <Link to="/sell" onClick={() => setMenuOpen(false)} data-testid="mobile-nav-sell" className="text-sm font-semibold px-3 py-2.5 rounded-lg bg-primary text-primary-foreground flex items-center gap-2 mb-2">
+                      <Plus className="w-4 h-4" /> {t("sell")}
+                    </Link>
+                  )}
                   <Link to="/browse" onClick={() => setMenuOpen(false)} data-testid="mobile-nav-all" className="text-sm font-medium px-3 py-2.5 rounded-lg hover:bg-muted flex items-center gap-2">
                     <Menu className="w-4 h-4" /> {t("all")}
                   </Link>
