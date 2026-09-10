@@ -57,6 +57,15 @@ async def get_locations():
     return await db.locations.find({}, NO_ID).to_list(100)
 
 
+@api.post("/track/apk-download")
+async def track_apk_download():
+    """Public, no-auth counter — fires when someone taps the APK download
+    link on the website (Footer/BetaAnnouncementBar). One shared counter
+    document, not a new tracking system."""
+    await db.app_stats.update_one({"id": "apk_downloads"}, {"$inc": {"count": 1}}, upsert=True)
+    return {"message": "ok"}
+
+
 app.include_router(auth_router)
 app.include_router(products_router)
 app.include_router(sellers_router)
@@ -112,10 +121,6 @@ async def startup():
         await db.users.create_index("username", unique=True)
         await db.products.create_index("slug")
         await db.products.create_index([("status", 1), ("category", 1)])
-        # Geospatial index for Transport & Delivery's nearby-driver search
-        # (Phase 2). Safe to call every startup — MongoDB no-ops if it
-        # already exists.
-        await db.driver_locations.create_index([("location", "2dsphere")])
     except Exception as e:
         logger.warning(f"index: {e}")
     admin_email = os.environ.get("ADMIN_EMAIL", "admin@deallakay.com").lower()
