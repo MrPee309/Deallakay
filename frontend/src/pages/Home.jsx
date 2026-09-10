@@ -62,7 +62,11 @@ export default function Home() {
             iPad 11"–12.9" in landscape): same side-by-side layout as the
             large-desktop tier, but with a simple straight left-edge fade
             instead of the elaborate wave mask — the curved mask's fixed
-            proportions don't hold up well at this narrower width. */}
+            proportions don't hold up well at this narrower width. The fade
+            zone is narrower than the desktop version (1/6 instead of 1/3)
+            because this container itself is narrower, so the same
+            proportional fade width would otherwise cut into the woman
+            instead of staying confined to the empty sky/background area. */}
         <div className="hidden lg:block xl:hidden absolute inset-y-0 right-0 w-1/2">
           <img
             src="/images/home/hero-visual.jpg"
@@ -70,7 +74,7 @@ export default function Home() {
             className="absolute inset-0 w-full h-full object-cover object-right"
           />
           <div
-            className="absolute inset-y-0 left-0 w-1/3 pointer-events-none"
+            className="absolute inset-y-0 left-0 w-1/6 pointer-events-none"
             style={{ background: "linear-gradient(to right, #F3F7FF, transparent)" }}
           />
         </div>
