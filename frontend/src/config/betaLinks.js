@@ -5,7 +5,7 @@
 // TODO: replace with the App/Play Store links once DealLakay Alert is
 // published there — this Expo "artifacts" URL is tied to one specific EAS
 // build and needs to be swapped for each new build in the meantime.
-export const ANDROID_APK_URL = "https://expo.dev/artifacts/eas/HmRCszy5wnegaximrFqQ78s2iJjKEU9MDgA0V-bqSPg.apk";
+export const ANDROID_APK_URL = "https://expo.dev/artifacts/eas/dUiGIuiJwqBgCOZ83UnMgjtObxTNQ7OrihG-mFfm89g.apk";
 
 // Hosted directly in this site's own /public/downloads folder.
 export const GUIDE_PDF_URL = "/downloads/deallakay-gid-fomasyon.pdf";
