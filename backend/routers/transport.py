@@ -491,3 +491,17 @@ async def transport_history(user: dict = Depends(get_current_user)):
         "status": {"$in": ["trip_completed", "cancelled", "no_driver_found"]},
     }, NO_ID).sort("updated_at", -1).to_list(100)
     return [_public_request(r) for r in reqs]
+
+
+# ================= Phase 6 — Admin Live Activity =================
+@router.get("/admin/live-activity")
+async def admin_live_activity(admin: dict = Depends(get_admin)):
+    """Real-time snapshot for the Admin Dashboard — reuses existing
+    collections, no separate tracking system."""
+    return {
+        "active_trips": await db.transport_requests.count_documents({"status": {"$in": ["accepted", "arrived", "trip_started"]}}),
+        "available_drivers": await db.transport_drivers.count_documents({"status": "available", "verification_status": "verified"}),
+        "busy_drivers": await db.transport_drivers.count_documents({"status": "busy", "verification_status": "verified"}),
+        "requests_today": await db.transport_requests.count_documents({"created_at": {"$gte": (now_iso()[:10])}}),
+        "no_driver_found_today": await db.transport_requests.count_documents({"status": "no_driver_found", "created_at": {"$gte": (now_iso()[:10])}}),
+    }
