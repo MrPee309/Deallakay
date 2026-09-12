@@ -427,3 +427,67 @@ async def cancel_request(rid: str, user: dict = Depends(get_current_user)):
         await db.transport_drivers.update_one({"user_id": r["matched_driver_id"]}, {"$set": {"status": "available"}})
         await create_notification(r["matched_driver_id"], "transport_cancelled", "Kliyan an anile demann lan.", "")
     return {"message": "ok"}
+
+
+# ================= Phase 4 — Trip Lifecycle =================
+# Status progression after "accepted": accepted (driver en route) →
+# arrived → trip_started → trip_completed. Each transition is guarded so
+# a step can never be skipped or done out of order (e.g. a driver cannot
+# complete a trip that never started).
+_TRIP_TRANSITIONS = {
+    "arrived": "accepted",
+    "start": "arrived",
+    "complete": "trip_started",
+}
+_TRIP_NEW_STATUS = {
+    "arrived": "arrived",
+    "start": "trip_started",
+    "complete": "trip_completed",
+}
+
+
+async def _driver_trip_action(rid: str, action: str, user: dict) -> dict:
+    r = await db.transport_requests.find_one({"id": rid})
+    if not r:
+        raise HTTPException(status_code=404, detail="Demann pa jwenn.")
+    if r.get("matched_driver_id") != user["id"]:
+        raise HTTPException(status_code=403, detail="Ou pa chofè ki matche ak kous sa a.")
+    required_status = _TRIP_TRANSITIONS[action]
+    if r["status"] != required_status:
+        raise HTTPException(status_code=400, detail=f"Kous la dwe nan estati '{required_status}' anvan sa a.")
+    new_status = _TRIP_NEW_STATUS[action]
+    await db.transport_requests.update_one({"id": rid}, {"$set": {"status": new_status, "updated_at": now_iso()}})
+    return await db.transport_requests.find_one({"id": rid})
+
+
+@router.post("/requests/{rid}/arrived")
+async def mark_arrived(rid: str, user: dict = Depends(get_current_user)):
+    r = await _driver_trip_action(rid, "arrived", user)
+    await create_notification(r["requester_id"], "driver_arrived", "📍 Chofè a rive!", f"/active-trip?id={rid}")
+    return _public_request(r)
+
+
+@router.post("/requests/{rid}/start")
+async def start_trip(rid: str, user: dict = Depends(get_current_user)):
+    r = await _driver_trip_action(rid, "start", user)
+    await create_notification(r["requester_id"], "trip_started", "🏍️ Kous la kòmanse.", f"/active-trip?id={rid}")
+    return _public_request(r)
+
+
+@router.post("/requests/{rid}/complete")
+async def complete_trip(rid: str, user: dict = Depends(get_current_user)):
+    r = await _driver_trip_action(rid, "complete", user)
+    await db.transport_drivers.update_one({"user_id": user["id"]}, {"$set": {"status": "available"}})
+    await create_notification(r["requester_id"], "trip_completed", "✅ Kous la fini. Mèsi paske w itilize DealLakay!", f"/active-trip?id={rid}")
+    return _public_request(r)
+
+
+@router.get("/history")
+async def transport_history(user: dict = Depends(get_current_user)):
+    """Both roles use the same endpoint — results differ based on whether
+    the caller is the requester or the matched driver on each record."""
+    reqs = await db.transport_requests.find({
+        "$or": [{"requester_id": user["id"]}, {"matched_driver_id": user["id"]}],
+        "status": {"$in": ["trip_completed", "cancelled", "no_driver_found"]},
+    }, NO_ID).sort("updated_at", -1).to_list(100)
+    return [_public_request(r) for r in reqs]
