@@ -7,6 +7,7 @@ formats, and response formats are unchanged from before the move.
 """
 import re
 import uuid
+from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Depends, WebSocket, WebSocketDisconnect, Query
 from pydantic import BaseModel
@@ -91,7 +92,8 @@ class ReviewIn(BaseModel):
     seller_id: str
     rating: int
     comment: str = ""
-    target_type: str = "seller"  # "seller" (default, unchanged) or "technician"
+    target_type: str = "seller"  # "seller" (default, unchanged), "technician", or "driver"
+    trip_id: Optional[str] = None  # required when target_type == "driver"
 
 
 class ReportIn(BaseModel):
@@ -198,21 +200,40 @@ async def websocket_endpoint(websocket: WebSocket, token: str = Query(...)):
 async def create_review(data: ReviewIn, user: dict = Depends(get_current_user)):
     if data.rating < 1 or data.rating > 5:
         raise HTTPException(status_code=400, detail="Rating dwe ant 1 ak 5.")
-    if data.target_type not in ("seller", "technician"):
+    if data.target_type not in ("seller", "technician", "driver"):
         raise HTTPException(status_code=400, detail="Tip evalyasyon pa valab.")
     if data.seller_id == user["id"]:
         raise HTTPException(status_code=400, detail="Ou pa ka evalye tèt ou.")
-    if data.target_type == "seller":
+
+    if data.target_type == "driver":
+        # Driver ratings are tied to ONE specific completed trip — unlike
+        # seller/technician reviews (any past conversation qualifies), a
+        # trip_id is required, must be COMPLETED, must belong to this
+        # client and this driver, and can only be rated once.
+        if not data.trip_id:
+            raise HTTPException(status_code=400, detail="trip_id obligatwa pou evalye yon chofè.")
+        trip = await db.transport_requests.find_one({"id": data.trip_id})
+        if not trip or trip.get("requester_id") != user["id"] or trip.get("matched_driver_id") != data.seller_id:
+            raise HTTPException(status_code=404, detail="Kous sa a pa jwenn oswa pa apatyen a ou.")
+        if trip.get("status") != "trip_completed":
+            raise HTTPException(status_code=400, detail="Ou ka evalye sèlman apre kous la fini.")
+        if await db.reviews.find_one({"trip_id": data.trip_id, "target_type": "driver"}):
+            raise HTTPException(status_code=400, detail="Ou deja evalye kous sa a.")
+    elif data.target_type == "seller":
         dup_query = {"seller_id": data.seller_id, "buyer_id": user["id"], "$or": [{"target_type": "seller"}, {"target_type": {"$exists": False}}]}
+        if await db.reviews.find_one(dup_query):
+            raise HTTPException(status_code=400, detail="Ou deja evalye sa a.")
     else:
         dup_query = {"seller_id": data.seller_id, "buyer_id": user["id"], "target_type": "technician"}
-    if await db.reviews.find_one(dup_query):
-        raise HTTPException(status_code=400, detail="Ou deja evalye sa a.")
-    verified = bool(await db.conversations.find_one({"seller_id": data.seller_id, "buyer_id": user["id"]}))
+        if await db.reviews.find_one(dup_query):
+            raise HTTPException(status_code=400, detail="Ou deja evalye sa a.")
+
+    verified = data.target_type == "driver" or bool(await db.conversations.find_one({"seller_id": data.seller_id, "buyer_id": user["id"]}))
     review = {
         "id": str(uuid.uuid4()),
         "seller_id": data.seller_id,
         "target_type": data.target_type,
+        "trip_id": data.trip_id,
         "buyer_id": user["id"],
         "buyer_username": user["username"],
         "buyer_avatar": user.get("avatar", ""),
@@ -227,13 +248,16 @@ async def create_review(data: ReviewIn, user: dict = Depends(get_current_user)):
     if data.target_type == "seller":
         review_query = {"seller_id": data.seller_id, "$or": [{"target_type": "seller"}, {"target_type": {"$exists": False}}]}
         profile_collection = db.seller_profiles
-    else:
+    elif data.target_type == "technician":
         review_query = {"seller_id": data.seller_id, "target_type": "technician"}
         profile_collection = db.technician_profiles
+    else:
+        review_query = {"seller_id": data.seller_id, "target_type": "driver"}
+        profile_collection = db.transport_drivers
     all_reviews = await db.reviews.find(review_query).to_list(1000)
     avg = round(sum(r["rating"] for r in all_reviews) / len(all_reviews), 1)
     await profile_collection.update_one({"user_id": data.seller_id}, {"$set": {"rating": avg, "review_count": len(all_reviews)}})
-    notif_type = "review" if data.target_type == "seller" else "technician_review"
+    notif_type = {"seller": "review", "technician": "technician_review", "driver": "driver_review"}[data.target_type]
     await create_notification(data.seller_id, notif_type, f"Nouvo avi {data.rating} zetwal de @{user['username']}", "")
     return {k: v for k, v in review.items() if k != "_id"}
 
