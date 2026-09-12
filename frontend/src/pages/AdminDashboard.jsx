@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { toast } from "sonner";
-import { Users, Store, Package, DollarSign, Flag, ShieldCheck, Loader2, Search, Ban, RotateCcw, Trash2, Check, X, Plus, Eye, Building2, UserCog, Smartphone } from "lucide-react";
+import { Users, Store, Package, DollarSign, Flag, ShieldCheck, Loader2, Search, Ban, RotateCcw, Trash2, Check, X, Plus, Eye, Building2, UserCog, Smartphone, Bike, MapPin } from "lucide-react";
 import api, { apiError } from "@/lib/api";
 import { useApp } from "@/contexts/AppContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -87,6 +87,8 @@ export default function AdminDashboard() {
           { value: "tech-verifications", label: "Verifikasyon Teknisyen", show: isFullAdmin, content: <AdminTechnicianVerifications /> },
           { value: "supplier-approvals", label: "Founisè An Atant", show: can("approve_suppliers"), content: <AdminSupplierApprovals /> },
           { value: "supplier-verifications", label: "Verifikasyon Founisè", show: isFullAdmin, content: <AdminSupplierVerifications /> },
+          { value: "transport-drivers", label: "Chofè Transpò", show: can("approve_drivers"), content: <AdminTransportDrivers /> },
+          { value: "transport-stations", label: "Stasyon", show: can("manage_stations"), content: <AdminTransportStations /> },
           { value: "categories", label: "Kategori", show: isFullAdmin, content: <AdminCategories /> },
           { value: "settings", label: "Paramèt", show: isFullAdmin, content: <AdminSettings /> },
           { value: "staff", label: "Anplwaye", show: isFullAdmin, content: <AdminStaff /> },
@@ -499,6 +501,116 @@ function AdminStaff() {
                 </label>
               ))}
             </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function AdminTransportDrivers() {
+  const [items, setItems] = useState([]);
+  const [activity, setActivity] = useState(null);
+  const load = async () => { const { data } = await api.get("/admin/transport/drivers"); setItems(data); };
+  const loadActivity = async () => { const { data } = await api.get("/transport/admin/live-activity"); setActivity(data); };
+  useEffect(() => { load(); loadActivity(); }, []);
+  const act = async (uid, action) => { await api.put(`/admin/transport/drivers/${uid}/${action}`); toast.success("Fèt"); load(); loadActivity(); };
+  const pending = items.filter((d) => d.verification_status === "pending");
+  const others = items.filter((d) => d.verification_status !== "pending");
+  return (
+    <div className="space-y-6">
+      {activity && (
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+          <div className="bg-card border border-border rounded-xl p-3 text-center"><div className="text-xl font-bold">{activity.active_trips}</div><div className="text-xs text-muted-foreground">Kous Aktif</div></div>
+          <div className="bg-card border border-border rounded-xl p-3 text-center"><div className="text-xl font-bold text-emerald-600">{activity.available_drivers}</div><div className="text-xs text-muted-foreground">Chofè Disponib</div></div>
+          <div className="bg-card border border-border rounded-xl p-3 text-center"><div className="text-xl font-bold text-amber-600">{activity.busy_drivers}</div><div className="text-xs text-muted-foreground">Chofè Okipe</div></div>
+          <div className="bg-card border border-border rounded-xl p-3 text-center"><div className="text-xl font-bold">{activity.requests_today}</div><div className="text-xs text-muted-foreground">Demann Jodi a</div></div>
+          <div className="bg-card border border-border rounded-xl p-3 text-center"><div className="text-xl font-bold text-rose-600">{activity.no_driver_found_today}</div><div className="text-xs text-muted-foreground">San Chofè Jodi a</div></div>
+        </div>
+      )}
+      <div>
+        <h3 className="font-semibold text-sm mb-2">An Atant ({pending.length})</h3>
+        {pending.length === 0 && <div className="text-center py-6 text-muted-foreground text-sm">Pa gen demann Chofè an atant.</div>}
+        {pending.map((d) => (
+          <div key={d.id} className="bg-card border border-border rounded-xl p-3 flex items-center gap-3 mb-2" data-testid={`transport-driver-${d.user_id}`}>
+            <Bike className="w-5 h-5 text-primary shrink-0" />
+            <div className="flex-1">
+              <div className="font-semibold text-sm">User ID: {d.user_id}</div>
+              <div className="text-xs text-muted-foreground">
+                {d.motorcycle?.brand} {d.motorcycle?.model} · {d.city}{d.area ? `, ${d.area}` : ""} · {timeAgo(d.created_at)}
+              </div>
+            </div>
+            <Button size="sm" className="bg-emerald-500" onClick={() => act(d.user_id, "approve")} data-testid={`transport-driver-approve-${d.user_id}`}><Check className="w-4 h-4" /></Button>
+            <Button size="sm" variant="outline" className="text-destructive" onClick={() => act(d.user_id, "reject")} data-testid={`transport-driver-reject-${d.user_id}`}><X className="w-4 h-4" /></Button>
+          </div>
+        ))}
+      </div>
+      <div>
+        <h3 className="font-semibold text-sm mb-2">Tout Lòt Chofè</h3>
+        {others.map((d) => (
+          <div key={d.id} className="bg-card border border-border rounded-xl p-3 flex items-center gap-3 mb-2" data-testid={`transport-driver-other-${d.user_id}`}>
+            <Bike className="w-5 h-5 text-muted-foreground shrink-0" />
+            <div className="flex-1">
+              <div className="font-semibold text-sm">User ID: {d.user_id}</div>
+              <div className="text-xs text-muted-foreground">{d.verification_status} · {d.status} · {d.city}</div>
+            </div>
+            {d.verification_status === "verified" && (
+              <Button size="sm" variant="outline" className="text-destructive" onClick={() => act(d.user_id, "suspend")} data-testid={`transport-driver-suspend-${d.user_id}`}>Sispann</Button>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function AdminTransportStations() {
+  const [items, setItems] = useState([]);
+  const [name, setName] = useState("");
+  const [city, setCity] = useState("");
+  const [area, setArea] = useState("");
+  const [saving, setSaving] = useState(false);
+  const load = async () => { const { data } = await api.get("/admin/transport/stations"); setItems(data); };
+  useEffect(() => { load(); }, []);
+
+  const create = async () => {
+    if (!name.trim() || !city.trim()) return toast.error("Antre non ak vil stasyon an.");
+    setSaving(true);
+    try {
+      await api.post("/admin/transport/stations", { name: name.trim(), city: city.trim(), area: area.trim() });
+      toast.success("Stasyon kreye.");
+      setName(""); setCity(""); setArea(""); load();
+    } catch (e) { toast.error(apiError(e)); } finally { setSaving(false); }
+  };
+
+  const toggle = async (s) => {
+    await api.put(`/admin/transport/stations/${s.id}/${s.status === "active" ? "deactivate" : "activate"}`);
+    load();
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="bg-card border border-border rounded-xl p-4 space-y-3">
+        <h3 className="font-semibold flex items-center gap-2"><MapPin className="w-4 h-4 text-primary" /> Kreye yon Stasyon</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div><Label>Non Stasyon</Label><Input value={name} onChange={(e) => setName(e.target.value)} className="mt-1.5" data-testid="station-name" /></div>
+          <div><Label>Vil</Label><Input value={city} onChange={(e) => setCity(e.target.value)} className="mt-1.5" data-testid="station-city" /></div>
+          <div><Label>Zòn (opsyonèl)</Label><Input value={area} onChange={(e) => setArea(e.target.value)} className="mt-1.5" data-testid="station-area" /></div>
+        </div>
+        <Button onClick={create} disabled={saving} data-testid="station-create-btn">{saving ? <Loader2 className="w-4 h-4 animate-spin" /> : "Kreye Stasyon"}</Button>
+      </div>
+      <div className="space-y-2">
+        {items.length === 0 && <div className="text-center py-6 text-muted-foreground text-sm">Pa gen stasyon ankò.</div>}
+        {items.map((s) => (
+          <div key={s.id} className="bg-card border border-border rounded-xl p-3 flex items-center gap-3" data-testid={`station-${s.id}`}>
+            <MapPin className="w-5 h-5 text-primary shrink-0" />
+            <div className="flex-1">
+              <div className="font-semibold text-sm">{s.name}</div>
+              <div className="text-xs text-muted-foreground">{s.city}{s.area ? `, ${s.area}` : ""} · {s.status}</div>
+            </div>
+            <Button size="sm" variant="outline" onClick={() => toggle(s)} data-testid={`station-toggle-${s.id}`}>
+              {s.status === "active" ? "Dezaktive" : "Aktive"}
+            </Button>
           </div>
         ))}
       </div>
