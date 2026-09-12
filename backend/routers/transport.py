@@ -251,6 +251,14 @@ class RequestIn(BaseModel):
     passenger_count: Optional[int] = 1
     package_description: str = ""
     notes: str = ""
+    # Phase 7 foundation — optional links so a delivery can later be traced
+    # back to a marketplace product or a "Request a Part" thread, without
+    # building the actual UI flows yet (per spec: architecture only, wire
+    # up the buttons once each side is ready). Never required, never
+    # validated against another collection here — that's the future
+    # integration's job, not this foundation.
+    related_product_id: Optional[str] = None
+    related_request_id: Optional[str] = None
 
 
 def _public_request(r: dict) -> dict:
@@ -262,6 +270,8 @@ def _public_request(r: dict) -> dict:
         "passenger_count": r.get("passenger_count"),
         "package_description": r.get("package_description", ""),
         "notes": r.get("notes", ""),
+        "related_product_id": r.get("related_product_id"),
+        "related_request_id": r.get("related_request_id"),
         "status": r["status"],
         "matched_driver_id": r.get("matched_driver_id"),
         "conversation_id": r.get("conversation_id"),
@@ -302,6 +312,8 @@ async def create_request(data: RequestIn, user: dict = Depends(get_current_user)
         "passenger_count": data.passenger_count,
         "package_description": data.package_description,
         "notes": data.notes,
+        "related_product_id": data.related_product_id,
+        "related_request_id": data.related_request_id,
         "status": status,
         "notified_driver_ids": notified_ids,
         "matched_driver_id": None,
