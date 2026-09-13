@@ -129,10 +129,16 @@ async def update_driver_status(data: StatusIn, user: dict = Depends(get_current_
 
 # ---------------- Stations (public read) ----------------
 @router.get("/stations")
-async def list_stations(city: Optional[str] = None):
+async def list_stations(city: Optional[str] = None, zone: Optional[str] = None):
     query = {"status": "active"}
     if city:
         query["city"] = city
+    if zone:
+        # Case-insensitive partial match — zone/quartier names aren't a
+        # controlled list yet (free text, like "area" already was), so an
+        # exact match would miss reasonable variations in how people type
+        # the same neighborhood name.
+        query["area"] = {"$regex": zone, "$options": "i"}
     stations = await db.transport_stations.find(query, NO_ID).sort("name", 1).to_list(200)
     for s in stations:
         s["driver_count"] = await db.transport_drivers.count_documents({"station_id": s["id"], "verification_status": "verified"})
