@@ -17,7 +17,7 @@ import auth as auth_lib
 import email_service
 import security
 from seed_data import CATEGORIES, DEPARTMENTS, DEFAULT_SETTINGS
-from shared import db, client, NO_ID, now_iso, slugify, get_current_user, get_admin, public_user, logger, manager, create_notification
+from shared import db, client, NO_ID, now_iso, slugify, get_current_user, get_admin, public_user, logger, manager, create_notification, fire_notify_me
 from routers.auth import router as auth_router
 from routers.products import router as products_router
 from routers.sellers import router as sellers_router
@@ -63,6 +63,59 @@ async def track_apk_download():
     link on the website (Footer/BetaAnnouncementBar). One shared counter
     document, not a new tracking system."""
     await db.app_stats.update_one({"id": "apk_downloads"}, {"$inc": {"count": 1}}, upsert=True)
+    return {"message": "ok"}
+
+
+# ================= "Notify Me" (Phase 8) =================
+# One generic subscription system covering all 3 examples from spec
+# section 23 (unavailable product, no technician, no moto) — reuses the
+# EXISTING notification infrastructure (create_notification) rather than
+# building a separate one per feature.
+class NotifyMeIn(BaseModel):
+    kind: str  # "product" | "technician" | "transport"
+    category: Optional[str] = None      # for "product": phone/laptop/parts/accessories/tools
+    specialty: Optional[str] = None     # for "technician"
+    city: Optional[str] = None          # for "transport"
+
+
+NOTIFY_KINDS = ["product", "technician", "transport"]
+
+
+@api.post("/notify-me")
+async def create_notify_request(data: NotifyMeIn, user: dict = Depends(get_current_user)):
+    if data.kind not in NOTIFY_KINDS:
+        raise HTTPException(status_code=400, detail="Kalite pa valab.")
+    # Avoid duplicate identical subscriptions for the same user.
+    existing = await db.notify_requests.find_one({
+        "user_id": user["id"], "kind": data.kind,
+        "category": data.category, "specialty": data.specialty, "city": data.city,
+    })
+    if existing:
+        return {"message": "Ou deja mande sa a.", "id": existing["id"]}
+    doc = {
+        "id": str(uuid.uuid4()),
+        "user_id": user["id"],
+        "kind": data.kind,
+        "category": data.category,
+        "specialty": data.specialty,
+        "city": data.city,
+        "notified": False,
+        "created_at": now_iso(),
+    }
+    await db.notify_requests.insert_one(dict(doc))
+    return {"message": "Nap avize w lè li disponib.", "id": doc["id"]}
+
+
+@api.get("/notify-me")
+async def list_my_notify_requests(user: dict = Depends(get_current_user)):
+    return await db.notify_requests.find({"user_id": user["id"], "notified": False}, NO_ID).sort("created_at", -1).to_list(100)
+
+
+@api.delete("/notify-me/{nid}")
+async def delete_notify_request(nid: str, user: dict = Depends(get_current_user)):
+    result = await db.notify_requests.delete_one({"id": nid, "user_id": user["id"]})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Pa jwenn.")
     return {"message": "ok"}
 
 
