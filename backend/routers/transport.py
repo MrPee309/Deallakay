@@ -15,7 +15,7 @@ from typing import List, Optional
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 
-from shared import db, NO_ID, now_iso, get_current_user, get_admin, create_notification
+from shared import db, NO_ID, now_iso, get_current_user, get_admin, create_notification, fire_notify_me
 
 router = APIRouter(prefix="/api/transport", tags=["transport"])
 
@@ -124,6 +124,8 @@ async def update_driver_status(data: StatusIn, user: dict = Depends(get_current_
     if d.get("status") == "busy" and data.status == "available":
         raise HTTPException(status_code=400, detail="Ou pa ka vin disponib pandan ou nan yon kous.")
     await db.transport_drivers.update_one({"user_id": user["id"]}, {"$set": {"status": data.status}})
+    if data.status == "available":
+        await fire_notify_me("transport", city=d.get("city"), message="🏍️ Yon moto disponib toupre w kounye a!", link="/request-moto")
     return {"message": "Estati ou mete ajou.", "status": data.status}
 
 
