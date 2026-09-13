@@ -149,6 +149,20 @@ async def discover_alerts(
         a["creator_name"] = c.get("full_name", "Itilizatè")
         a["creator_role"] = _creator_role_label(c)
 
+    # Response count — real data, computed once per alert here rather than
+    # a separate N+1 request per card on the frontend.
+    alert_ids = [a["id"] for a in alerts]
+    if alert_ids:
+        counts_cursor = db.alert_responses.aggregate([
+            {"$match": {"alert_id": {"$in": alert_ids}}},
+            {"$group": {"_id": "$alert_id", "count": {"$sum": 1}}},
+        ])
+        counts = {doc["_id"]: doc["count"] async for doc in counts_cursor}
+    else:
+        counts = {}
+    for a in alerts:
+        a["response_count"] = counts.get(a["id"], 0)
+
     return alerts
 
 
