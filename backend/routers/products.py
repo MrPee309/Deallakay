@@ -14,7 +14,7 @@ from fastapi import APIRouter, HTTPException, Depends, Request
 from pydantic import BaseModel
 
 import security
-from shared import db, NO_ID, now_iso, slugify, get_current_user, create_notification
+from shared import db, NO_ID, now_iso, slugify, get_current_user, create_notification, fire_notify_me
 
 router = APIRouter(prefix="/api", tags=["products"])
 
@@ -149,6 +149,7 @@ async def create_product(data: ProductIn, user: dict = Depends(get_current_user)
     }
     await db.products.insert_one(doc)
     await _notify_matching_alerts(doc)
+    await fire_notify_me("product", category=data.category, message=f"📦 Yon nouvo pwodwi disponib: {data.title}", link=f"/product/{slug}")
     return strip_private(doc, is_owner=True)
 
 
