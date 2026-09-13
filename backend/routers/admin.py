@@ -15,7 +15,7 @@ from pydantic import BaseModel, EmailStr
 
 import auth as auth_lib
 from seed_data import DEFAULT_SETTINGS
-from shared import db, NO_ID, now_iso, slugify, get_admin, create_notification, require_staff, STAFF_PERMISSIONS
+from shared import db, NO_ID, now_iso, slugify, get_admin, create_notification, require_staff, STAFF_PERMISSIONS, fire_notify_me
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -302,6 +302,9 @@ async def admin_technician_action(uid: str, action: str, admin: dict = Depends(r
         await db.technician_profiles.update_one({"user_id": uid}, {"$set": {"status": "active"}})
         await db.users.update_one({"id": uid}, {"$set": {"is_technician": True}})
         await create_notification(uid, "technician_approved", "Demann Teknisyen ou apwouve — ou vizib pou kliyan kounye a!", "")
+        u = await db.users.find_one({"id": uid})
+        for spec in p.get("specialties", []):
+            await fire_notify_me("technician", specialty=spec, message=f"🔧 Yon teknisyen {spec} disponib kounye a!", link=f"/technician/{(u or {}).get('username', '')}")
     else:
         await db.technician_profiles.update_one({"user_id": uid}, {"$set": {"status": "rejected"}})
         await create_notification(uid, "technician_rejected", "Demann Teknisyen ou rejte.", "")
