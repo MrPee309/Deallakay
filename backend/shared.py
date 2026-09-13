@@ -15,7 +15,7 @@ import re
 import uuid
 import logging
 from datetime import datetime, timezone
-from typing import List, Dict
+from typing import List, Dict, Any, Optional
 
 from fastapi import HTTPException, Request, Depends, WebSocket
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -175,3 +175,20 @@ async def create_notification(user_id: str, ntype: str, message: str, link: str 
     await db.notifications.insert_one(dict(notif))
     await manager.send(user_id, {"event": "notification", "data": {k: v for k, v in notif.items() if k != "_id"}})
 
+
+async def fire_notify_me(kind: str, *, category: Optional[str] = None, specialty: Optional[str] = None, city: Optional[str] = None, message: str, link: str = ""):
+    """"Notify Me" (Phase 8) — called from the relevant creation/
+    availability points (new product, technician approved, driver goes
+    available) to match pending subscriptions and notify+mark them,
+    reusing create_notification rather than a separate system."""
+    query: Dict[str, Any] = {"kind": kind, "notified": False}
+    if category is not None:
+        query["category"] = category
+    if specialty is not None:
+        query["specialty"] = specialty
+    if city is not None:
+        query["city"] = city
+    matches = await db.notify_requests.find(query, NO_ID).to_list(200)
+    for m in matches:
+        await create_notification(m["user_id"], f"notify_me_{kind}", message, link)
+        await db.notify_requests.update_one({"id": m["id"]}, {"$set": {"notified": True}})
