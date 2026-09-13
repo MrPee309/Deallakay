@@ -21,7 +21,9 @@ router = APIRouter(prefix="/api", tags=["technicians"])
 SPECIALTIES = [
     "Reparasyon Telefòn", "Reparasyon Laptop", "Chanjman Ekran", "Chanjman Batri",
     "Reparasyon Kat Mè (Motherboard)", "Data Recovery", "Deblokaj iCloud/FRP",
-    "Enstalasyon Lojisyèl", "Reparasyon Konsòl Jwèt", "Lòt Sèvis Teknik",
+    "Enstalasyon Lojisyèl", "Reparasyon Konsòl Jwèt",
+    "Mekanisyen", "Plonbye", "Elektrisyen", "Klimatizasyon", "Konstriksyon",
+    "Lòt Sèvis Teknik",
 ]
 
 AVAILABILITY_STATUSES = ["available", "busy", "offline", "by_appointment"]
