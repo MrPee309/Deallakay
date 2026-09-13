@@ -250,6 +250,7 @@ class RequestIn(BaseModel):
     destination_lng: Optional[float] = None
     passenger_count: Optional[int] = 1
     package_description: str = ""
+    reason: str = ""
     notes: str = ""
     # Phase 7 foundation — optional links so a delivery can later be traced
     # back to a marketplace product or a "Request a Part" thread, without
@@ -269,6 +270,8 @@ def _public_request(r: dict) -> dict:
         "destination_address": r["destination_address"],
         "passenger_count": r.get("passenger_count"),
         "package_description": r.get("package_description", ""),
+        "reason": r.get("reason", ""),
+        "agreed_price": r.get("agreed_price"),
         "notes": r.get("notes", ""),
         "related_product_id": r.get("related_product_id"),
         "related_request_id": r.get("related_request_id"),
@@ -311,6 +314,8 @@ async def create_request(data: RequestIn, user: dict = Depends(get_current_user)
         ),
         "passenger_count": data.passenger_count,
         "package_description": data.package_description,
+        "reason": data.reason,
+        "agreed_price": None,
         "notes": data.notes,
         "related_product_id": data.related_product_id,
         "related_request_id": data.related_request_id,
@@ -517,3 +522,29 @@ async def admin_live_activity(admin: dict = Depends(get_admin)):
         "requests_today": await db.transport_requests.count_documents({"created_at": {"$gte": (now_iso()[:10])}}),
         "no_driver_found_today": await db.transport_requests.count_documents({"status": "no_driver_found", "created_at": {"$gte": (now_iso()[:10])}}),
     }
+
+
+# ================= Price Agreement (via existing Messenger) =================
+# Deliberately NOT a payment/wallet system — this only RECORDS the number
+# both sides settled on through the existing Messenger conversation, so it
+# can be shown clearly in the app ("Pri dakò: 350 Gdes"). No money moves
+# through DealLakay here; per spec, no payment system exists yet.
+class PriceIn(BaseModel):
+    price: float
+
+
+@router.post("/requests/{rid}/agree-price")
+async def agree_price(rid: str, data: PriceIn, user: dict = Depends(get_current_user)):
+    if data.price <= 0:
+        raise HTTPException(status_code=400, detail="Pri pa valab.")
+    r = await db.transport_requests.find_one({"id": rid})
+    if not r:
+        raise HTTPException(status_code=404, detail="Demann pa jwenn.")
+    if user["id"] not in (r["requester_id"], r.get("matched_driver_id")):
+        raise HTTPException(status_code=403, detail="Ou pa fè pati kous sa a.")
+    if r["status"] not in ("accepted", "arrived"):
+        raise HTTPException(status_code=400, detail="Ou ka konfime pri sèlman anvan kous la kòmanse.")
+    await db.transport_requests.update_one({"id": rid}, {"$set": {"agreed_price": data.price, "updated_at": now_iso()}})
+    other_id = r["matched_driver_id"] if user["id"] == r["requester_id"] else r["requester_id"]
+    await create_notification(other_id, "price_agreed", f"💰 Pri dakò: {data.price:.0f} Gdes", f"/active-trip?id={rid}")
+    return await db.transport_requests.find_one({"id": rid}, NO_ID)
