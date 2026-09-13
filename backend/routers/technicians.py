@@ -14,7 +14,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 
 import security
-from shared import db, NO_ID, now_iso, get_current_user
+from shared import db, NO_ID, now_iso, get_current_user, create_notification
 
 router = APIRouter(prefix="/api", tags=["technicians"])
 
@@ -352,3 +352,29 @@ async def contact_technician(username: str, user: dict = Depends(get_current_use
     }
     await db.conversations.insert_one(dict(conv))
     return conv
+
+
+# ---------------- Favorites (reuses the SAME db.favorites collection as
+# product favorites — a technician favorite just uses a different key
+# field, technician_username, instead of product_id) ----------------
+@router.post("/technician-favorites/{username}")
+async def toggle_technician_favorite(username: str, user: dict = Depends(get_current_user)):
+    tu = await db.users.find_one({"username": username, "is_technician": True})
+    if not tu:
+        raise HTTPException(status_code=404, detail="Teknisyen pa jwenn.")
+    existing = await db.favorites.find_one({"user_id": user["id"], "technician_username": username})
+    if existing:
+        await db.favorites.delete_one({"user_id": user["id"], "technician_username": username})
+        return {"favorited": False}
+    await db.favorites.insert_one({"id": str(uuid.uuid4()), "user_id": user["id"], "technician_username": username, "created_at": now_iso()})
+    if tu["id"] != user["id"]:
+        await create_notification(tu["id"], "favorite", f"@{user['username']} sove pwofil ou", f"/technician/{username}")
+    return {"favorited": True}
+
+
+@router.get("/technician-favorites")
+async def get_favorite_technicians(user: dict = Depends(get_current_user)):
+    favs = await db.favorites.find({"user_id": user["id"], "technician_username": {"$exists": True}}, NO_ID).to_list(500)
+    usernames = [f["technician_username"] for f in favs]
+    users = await db.users.find({"username": {"$in": usernames}, "is_technician": True}, NO_ID).to_list(500)
+    return [{"username": u["username"], "full_name": u.get("full_name", u["username"]), "avatar": u.get("avatar", ""), "city": u.get("city"), "specialties": u.get("specialties", []), "technician_verified": u.get("technician_verified", False), "rating": u.get("rating", 0)} for u in users]
