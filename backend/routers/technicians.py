@@ -37,6 +37,8 @@ class BecomeTechnicianIn(BaseModel):
     years_experience: Optional[int] = None
     languages: List[str] = []
     availability: str = "available"
+    lat: Optional[float] = None
+    lng: Optional[float] = None
 
 
 class TechnicianSettingsIn(BaseModel):
@@ -89,6 +91,8 @@ async def become_technician(data: BecomeTechnicianIn, user: dict = Depends(get_c
             "years_experience": data.years_experience,
             "languages": data.languages,
             "availability": data.availability,
+            "lat": data.lat,
+            "lng": data.lng,
             "whatsapp_enabled": True,
             "whatsapp_number": user.get("phone", ""),
             "show_phone": True,
