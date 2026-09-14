@@ -311,6 +311,29 @@ async def admin_technician_action(uid: str, action: str, admin: dict = Depends(r
     return {"message": "ok"}
 
 
+# ---------------- Local Business applications (pending approval) ----------------
+@router.get("/business-applications")
+async def admin_business_applications(admin: dict = Depends(require_staff("approve_businesses"))):
+    return await db.business_profiles.find({}, NO_ID).sort("created_at", -1).to_list(500)
+
+
+@router.put("/business-applications/{uid}/{action}")
+async def admin_business_action(uid: str, action: str, admin: dict = Depends(require_staff("approve_businesses"))):
+    if action not in ("approve", "reject"):
+        raise HTTPException(status_code=400, detail="Aksyon pa valab.")
+    b = await db.business_profiles.find_one({"user_id": uid})
+    if not b:
+        raise HTTPException(status_code=404, detail="Pa jwenn.")
+    if action == "approve":
+        await db.business_profiles.update_one({"user_id": uid}, {"$set": {"status": "active"}})
+        await create_notification(uid, "business_approved", "Demann Biznis Lokal ou apwouve — ou vizib pou kliyan kounye a!", "")
+        await fire_notify_me("business", city=b.get("city"), message=f"🏪 {b['business_name']} ({b['business_type']}) disponib kounye a!", link=f"/business/{b['id']}")
+    else:
+        await db.business_profiles.update_one({"user_id": uid}, {"$set": {"status": "rejected"}})
+        await create_notification(uid, "business_rejected", "Demann Biznis Lokal ou rejte.", "")
+    return {"message": "ok"}
+
+
 @router.get("/supplier-verifications")
 async def admin_supplier_verifications(admin: dict = Depends(get_admin)):
     return await db.supplier_verifications.find({}, NO_ID).sort("created_at", -1).to_list(500)
