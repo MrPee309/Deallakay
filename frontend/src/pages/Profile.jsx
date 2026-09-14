@@ -68,6 +68,7 @@ export default function Profile() {
         ) : (
           <Button onClick={() => nav("/technician-dashboard")} variant="outline" className="w-full h-11 font-semibold" data-testid="profile-tech-dashboard">Tablo Teknisyen</Button>
         )}
+        <Button onClick={() => nav("/become-business")} variant="outline" className="w-full h-11 font-semibold" data-testid="profile-become-business">Anrejistre Biznis Lokal</Button>
         {user.role === "admin" && <Button variant="outline" onClick={() => nav("/admin")} className="w-full h-11" data-testid="profile-admin"><ShieldCheck className="w-4 h-4 mr-2" />Admin Panel</Button>}
         <Button variant="outline" onClick={logoutAll} className="w-full h-11" data-testid="logout-all-btn"><ShieldOff className="w-4 h-4 mr-2" />Dekonekte tout sesyon</Button>
         <Button variant="ghost" onClick={() => { logout(); nav("/"); }} className="w-full h-11 text-destructive" data-testid="profile-logout"><LogOut className="w-4 h-4 mr-2" />Dekonekte</Button>
