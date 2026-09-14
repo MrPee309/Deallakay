@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { toast } from "sonner";
-import { Store, Loader2, CheckCircle2, ShieldCheck } from "lucide-react";
+import { Store, Loader2, CheckCircle2, ShieldCheck, LocateFixed } from "lucide-react";
 import api, { apiError } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -18,13 +18,25 @@ export default function BecomeSeller({ onDone }) {
   const { user, fetchMe } = useAuth();
   const [a, setA] = useState(false);
   const [b, setB] = useState(false);
+  const [coords, setCoords] = useState(null);
+  const [locating, setLocating] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  const useMyLocation = () => {
+    if (!navigator.geolocation) return toast.error("Navigatè ou pa sipòte lokalizasyon.");
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => { setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude }); setLocating(false); toast.success("Pozisyon jwenn!"); },
+      () => { setLocating(false); toast.error("Nou pa t ka jwenn pozisyon ou. Otorize aksè lokalizasyon nan navigatè a."); },
+      { enableHighAccuracy: true, timeout: 10000 },
+    );
+  };
 
   const submit = async () => {
     if (!a || !b) return toast.error("Aksepte tou de kondisyon yo.");
     setLoading(true);
     try {
-      await api.post("/seller/become", { accept_seller_terms: a, accept_marketplace_rules: b });
+      await api.post("/seller/become", { accept_seller_terms: a, accept_marketplace_rules: b, lat: coords?.lat, lng: coords?.lng });
       await fetchMe();
       toast.success("Ou se yon vandè kounye a!");
       onDone && onDone();
@@ -45,6 +57,17 @@ export default function BecomeSeller({ onDone }) {
           <Req ok={true} label={`Non konplè: ${user?.full_name}`} />
           <Req ok={true} label={`Lokasyon: ${user?.city}, ${user?.department}`} />
         </div>
+
+        <button
+          type="button"
+          onClick={useMyLocation}
+          disabled={locating}
+          data-testid="seller-use-location"
+          className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline disabled:opacity-50"
+        >
+          <LocateFixed className="w-4 h-4" />
+          {locating ? "N ap chèche pozisyon w..." : coords ? "Pozisyon egzat jwenn ✓" : "Itilize pozisyon egzat mwen (GPS)"}
+        </button>
 
         <div className="mt-6 bg-muted/50 rounded-xl p-4">
           <h3 className="font-semibold text-sm mb-2 flex items-center gap-1.5"><ShieldCheck className="w-4 h-4 text-primary" />Règ Marketplace</h3>
