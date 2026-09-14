@@ -19,10 +19,17 @@ from shared import db, NO_ID, now_iso, get_current_user, create_notification
 router = APIRouter(prefix="/api", tags=["technicians"])
 
 SPECIALTIES = [
+    # Elektwonik / Aparèy
     "Reparasyon Telefòn", "Reparasyon Laptop", "Chanjman Ekran", "Chanjman Batri",
     "Reparasyon Kat Mè (Motherboard)", "Data Recovery", "Deblokaj iCloud/FRP",
-    "Enstalasyon Lojisyèl", "Reparasyon Konsòl Jwèt",
-    "Mekanisyen", "Plonbye", "Elektrisyen", "Klimatizasyon", "Konstriksyon",
+    "Enstalasyon Lojisyèl", "Reparasyon Konsòl Jwèt", "Reparasyon Televizyon",
+    # Machin / Motè
+    "Mekanisyen", "Elektrisyen Machin", "Reparasyon Moto",
+    # Kay / Konstriksyon
+    "Elektrisyen", "Plonbye", "Klimatizasyon", "Konstriksyon", "Chapant (Bwa)",
+    "Mason", "Penti (Kay)", "Soude (Welding)", "Anfòm Aliminyòm",
+    # Sèvis Domestik / Lòt Metye
+    "Jadinaj", "Netwayaj", "Kouti", "Sekirite",
     "Lòt Sèvis Teknik",
 ]
 
