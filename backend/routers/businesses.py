@@ -36,6 +36,8 @@ class BusinessIn(BaseModel):
     city: str
     area: str = ""
     photos: List[str] = []
+    lat: Optional[float] = None
+    lng: Optional[float] = None
 
 
 class BusinessUpdateIn(BaseModel):
@@ -47,6 +49,8 @@ class BusinessUpdateIn(BaseModel):
     city: Optional[str] = None
     area: Optional[str] = None
     photos: Optional[List[str]] = None
+    lat: Optional[float] = None
+    lng: Optional[float] = None
 
 
 @router.post("/businesses/become")
@@ -78,6 +82,8 @@ async def become_business(data: BusinessIn, user: dict = Depends(get_current_use
         "city": data.city,
         "area": data.area,
         "photos": data.photos[:10],
+        "lat": data.lat,
+        "lng": data.lng,
         "status": "pending",
         "rating": 0,
         "review_count": 0,
