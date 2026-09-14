@@ -19,6 +19,8 @@ router = APIRouter(prefix="/api", tags=["sellers"])
 class BecomeSellerIn(BaseModel):
     accept_seller_terms: bool
     accept_marketplace_rules: bool
+    lat: Optional[float] = None
+    lng: Optional[float] = None
 
 
 class SellerSettingsIn(BaseModel):
@@ -30,6 +32,8 @@ class SellerSettingsIn(BaseModel):
     store_name: Optional[str] = None
     store_description: Optional[str] = None
     avatar: Optional[str] = None
+    lat: Optional[float] = None
+    lng: Optional[float] = None
 
 
 @router.post("/seller/become")
@@ -54,6 +58,8 @@ async def become_seller(data: BecomeSellerIn, user: dict = Depends(get_current_u
             "bio": "",
             "store_name": "",
             "store_description": "",
+            "lat": data.lat,
+            "lng": data.lng,
             "rating": 0,
             "review_count": 0,
             "followers": 0,
