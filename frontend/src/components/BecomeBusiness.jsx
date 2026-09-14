@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Store, Loader2, CheckCircle2, ShieldCheck, Hotel, UtensilsCrossed, Wrench, Pill, Camera, Scissors, Building2, ShoppingBag, GraduationCap, MoreHorizontal } from "lucide-react";
+import { Store, Loader2, CheckCircle2, ShieldCheck, Hotel, UtensilsCrossed, Wrench, Pill, Camera, Scissors, Building2, ShoppingBag, GraduationCap, MoreHorizontal, LocateFixed } from "lucide-react";
 import api, { apiError } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { useApp } from "@/contexts/AppContext";
@@ -41,8 +41,20 @@ export default function BecomeBusiness({ onDone }) {
   const [department, setDepartment] = useState("");
   const [city, setCity] = useState("");
   const [area, setArea] = useState("");
+  const [coords, setCoords] = useState(null);
+  const [locating, setLocating] = useState(false);
   const [terms, setTerms] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  const useMyLocation = () => {
+    if (!navigator.geolocation) return toast.error("Navigatè ou pa sipòte lokalizasyon.");
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => { setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude }); setLocating(false); toast.success("Pozisyon jwenn!"); },
+      () => { setLocating(false); toast.error("Nou pa t ka jwenn pozisyon ou. Otorize aksè lokalizasyon nan navigatè a."); },
+      { enableHighAccuracy: true, timeout: 10000 },
+    );
+  };
 
   useEffect(() => {
     api.get("/business-types").then(({ data }) => setBusinessTypes(data)).catch(() => {});
@@ -66,6 +78,8 @@ export default function BecomeBusiness({ onDone }) {
         department,
         city,
         area,
+        lat: coords?.lat,
+        lng: coords?.lng,
       });
       await fetchMe();
       toast.success("Demann Biznis Lokal ou voye! Li an atant apwobasyon admin.");
@@ -133,6 +147,17 @@ export default function BecomeBusiness({ onDone }) {
             <Input value={area} onChange={(e) => setArea(e.target.value)} className="mt-1.5 h-11" placeholder="egzanp: Bòkòl" data-testid="business-area" />
           </div>
         </div>
+
+        <button
+          type="button"
+          onClick={useMyLocation}
+          disabled={locating}
+          data-testid="business-use-location"
+          className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline disabled:opacity-50"
+        >
+          <LocateFixed className="w-4 h-4" />
+          {locating ? "N ap chèche pozisyon w..." : coords ? "Pozisyon egzat jwenn ✓" : "Itilize pozisyon egzat mwen (GPS)"}
+        </button>
 
         <div className="mt-5">
           <Label>Telefòn</Label>
