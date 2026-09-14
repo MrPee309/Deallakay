@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
-import { Package, DollarSign, FileText, Eye, Heart, MessageSquare, Plus, Pencil, Trash2, CheckCircle, RotateCcw, ShieldCheck, Loader2, Star } from "lucide-react";
+import { Package, DollarSign, FileText, Eye, Heart, MessageSquare, Plus, Pencil, Trash2, CheckCircle, RotateCcw, ShieldCheck, Loader2, Star, LocateFixed } from "lucide-react";
 import api, { apiError } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatPrice } from "@/lib/format";
@@ -190,9 +190,21 @@ function SettingsTab({ profile, user, onSaved }) {
     store_name: profile?.store_name || "", store_description: profile?.store_description || "", bio: profile?.bio || "",
     whatsapp_enabled: profile?.whatsapp_enabled ?? true, whatsapp_number: profile?.whatsapp_number || "",
     show_phone: profile?.show_phone ?? true, show_location: profile?.show_location ?? true,
+    lat: profile?.lat ?? null, lng: profile?.lng ?? null,
   });
   const [saving, setSaving] = useState(false);
+  const [locating, setLocating] = useState(false);
   const set = (k, v) => setF((s) => ({ ...s, [k]: v }));
+
+  const useMyLocation = () => {
+    if (!navigator.geolocation) return toast.error("Navigatè ou pa sipòte lokalizasyon.");
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => { set("lat", pos.coords.latitude); set("lng", pos.coords.longitude); setLocating(false); toast.success("Pozisyon jwenn!"); },
+      () => { setLocating(false); toast.error("Nou pa t ka jwenn pozisyon ou. Otorize aksè lokalizasyon nan navigatè a."); },
+      { enableHighAccuracy: true, timeout: 10000 },
+    );
+  };
 
   const save = async () => {
     setSaving(true);
@@ -207,6 +219,16 @@ function SettingsTab({ profile, user, onSaved }) {
       {f.whatsapp_enabled && <div><Label>Nimewo WhatsApp</Label><Input value={f.whatsapp_number} onChange={(e) => set("whatsapp_number", e.target.value)} data-testid="setting-whatsapp-number" className="mt-1.5 h-11" placeholder="+509..." /></div>}
       <div className="flex items-center justify-between"><Label>Montre telefòn piblikman</Label><Switch checked={f.show_phone} onCheckedChange={(v) => set("show_phone", v)} data-testid="setting-show-phone" /></div>
       <div className="flex items-center justify-between"><Label>Montre lokasyon</Label><Switch checked={f.show_location} onCheckedChange={(v) => set("show_location", v)} data-testid="setting-show-location" /></div>
+      <button
+        type="button"
+        onClick={useMyLocation}
+        disabled={locating}
+        data-testid="setting-use-location"
+        className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline disabled:opacity-50"
+      >
+        <LocateFixed className="w-4 h-4" />
+        {locating ? "N ap chèche pozisyon w..." : f.lat ? "Pozisyon egzat jwenn ✓" : "Itilize pozisyon egzat mwen (GPS)"}
+      </button>
       <Button onClick={save} disabled={saving} data-testid="save-settings-btn" className="bg-primary">{saving ? <Loader2 className="w-4 h-4 animate-spin" /> : "Anrejistre"}</Button>
     </div>
   );
