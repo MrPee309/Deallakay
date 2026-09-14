@@ -84,6 +84,7 @@ STAFF_PERMISSIONS = [
     "handle_reports",
     "approve_drivers",
     "manage_stations",
+    "approve_businesses",
 ]
 
 
