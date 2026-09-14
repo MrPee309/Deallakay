@@ -88,6 +88,7 @@ export default function AdminDashboard() {
           { value: "supplier-approvals", label: "Founisè An Atant", show: can("approve_suppliers"), content: <AdminSupplierApprovals /> },
           { value: "supplier-verifications", label: "Verifikasyon Founisè", show: isFullAdmin, content: <AdminSupplierVerifications /> },
           { value: "transport-drivers", label: "Chofè Transpò", show: can("approve_drivers"), content: <AdminTransportDrivers /> },
+          { value: "business-applications", label: "Biznis Lokal", show: can("approve_businesses"), content: <AdminBusinessApplications /> },
           { value: "transport-stations", label: "Stasyon", show: can("manage_stations"), content: <AdminTransportStations /> },
           { value: "categories", label: "Kategori", show: isFullAdmin, content: <AdminCategories /> },
           { value: "settings", label: "Paramèt", show: isFullAdmin, content: <AdminSettings /> },
@@ -500,6 +501,46 @@ function AdminStaff() {
                   {PERMISSION_LABELS[p] || p}
                 </label>
               ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function AdminBusinessApplications() {
+  const [items, setItems] = useState([]);
+  const load = async () => { const { data } = await api.get("/business-applications"); setItems(data); };
+  useEffect(() => { load(); }, []);
+  const act = async (uid, action) => { await api.put(`/business-applications/${uid}/${action}`); toast.success("Fèt"); load(); };
+  const pending = items.filter((b) => b.status === "pending");
+  const others = items.filter((b) => b.status !== "pending");
+  return (
+    <div className="space-y-6">
+      <div>
+        <h3 className="font-semibold text-sm mb-2">An Atant ({pending.length})</h3>
+        {pending.length === 0 && <div className="text-center py-6 text-muted-foreground text-sm">Pa gen demann Biznis Lokal an atant.</div>}
+        {pending.map((b) => (
+          <div key={b.id} className="bg-card border border-border rounded-xl p-3 flex items-center gap-3 mb-2" data-testid={`business-app-${b.user_id}`}>
+            <Building2 className="w-5 h-5 text-primary shrink-0" />
+            <div className="flex-1">
+              <div className="font-semibold text-sm">{b.business_name} — {b.business_type}</div>
+              <div className="text-xs text-muted-foreground">@{b.username} · {b.city}, {b.department}{b.area ? `, ${b.area}` : ""} · {timeAgo(b.created_at)}</div>
+            </div>
+            <Button size="sm" className="bg-emerald-500" onClick={() => act(b.user_id, "approve")} data-testid={`business-approve-${b.user_id}`}><Check className="w-4 h-4" /></Button>
+            <Button size="sm" variant="outline" className="text-destructive" onClick={() => act(b.user_id, "reject")} data-testid={`business-reject-${b.user_id}`}><X className="w-4 h-4" /></Button>
+          </div>
+        ))}
+      </div>
+      <div>
+        <h3 className="font-semibold text-sm mb-2">Tout Lòt Biznis</h3>
+        {others.map((b) => (
+          <div key={b.id} className="bg-card border border-border rounded-xl p-3 flex items-center gap-3 mb-2" data-testid={`business-app-other-${b.user_id}`}>
+            <Building2 className="w-5 h-5 text-muted-foreground shrink-0" />
+            <div className="flex-1">
+              <div className="font-semibold text-sm">{b.business_name} — {b.business_type}</div>
+              <div className="text-xs text-muted-foreground">{b.status} · {b.city}</div>
             </div>
           </div>
         ))}
