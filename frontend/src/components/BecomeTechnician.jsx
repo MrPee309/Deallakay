@@ -1,149 +1,164 @@
-import React, { useEffect, useState } from "react";
-import { toast } from "sonner";
-import { Wrench, Loader2, CheckCircle2, ShieldCheck } from "lucide-react";
-import api, { apiError } from "@/lib/api";
-import { useAuth } from "@/contexts/AuthContext";
-import { useApp } from "@/contexts/AppContext";
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+"""
+Seller endpoints: become a seller, seller profile/settings, verification
+requests, seller dashboard stats, and public seller pages (profile + reviews).
 
-const AVAILABILITY_OPTIONS = [
-  { value: "available", label: "Disponib" },
-  { value: "busy", label: "Okipe" },
-  { value: "offline", label: "Offline" },
-  { value: "by_appointment", label: "Sou Randevou" },
-];
+Moved out of server.py during Phase 2A modularization. Behavior, paths, request
+formats, and response formats are unchanged from before the move.
+"""
+import uuid
+from typing import Optional
 
-const TECHNICIAN_RULES = [
-  "Bay estimasyon reyalis pou pri ak dire reparasyon.",
-  "Pa pran aparèy yon kliyan san yon antant klè.",
-  "Repare ak menm pyès kalite ou pwomèt kliyan an.",
-  "Reponn kliyan yo ak respè.",
-];
+from fastapi import APIRouter, HTTPException, Depends
+from pydantic import BaseModel
 
-export default function BecomeTechnician({ onDone }) {
-  const { user, fetchMe } = useAuth();
-  const { locations } = useApp();
-  const [specialties, setSpecialties] = useState([]);
-  const [allSpecialties, setAllSpecialties] = useState([]);
-  const [departments, setDepartments] = useState([]);
-  const [bio, setBio] = useState("");
-  const [languages, setLanguages] = useState("");
-  const [availability, setAvailability] = useState("available");
-  const [terms, setTerms] = useState(false);
-  const [loading, setLoading] = useState(false);
+from shared import db, NO_ID, now_iso, get_current_user
 
-  useEffect(() => {
-    api.get("/technician-specialties").then(({ data }) => setAllSpecialties(data)).catch(() => {});
-  }, []);
+router = APIRouter(prefix="/api", tags=["sellers"])
 
-  const toggleSpecialty = (s) => setSpecialties((cur) => cur.includes(s) ? cur.filter((x) => x !== s) : [...cur, s]);
-  const toggleDepartment = (d) => setDepartments((cur) => cur.includes(d) ? cur.filter((x) => x !== d) : [...cur, d]);
 
-  const submit = async () => {
-    if (!terms) return toast.error("Aksepte règ yo.");
-    if (specialties.length === 0) return toast.error("Chwazi omwen yon espesyalite.");
-    if (departments.length === 0) return toast.error("Chwazi omwen yon depatman kote ou sèvi.");
-    setLoading(true);
-    try {
-      await api.post("/technician/become", {
-        accept_technician_terms: terms, specialties, service_departments: departments, bio,
-        languages: languages.split(",").map((l) => l.trim()).filter(Boolean),
-        availability,
-      });
-      await fetchMe();
-      toast.success("Ou se yon teknisyen kounye a!");
-      onDone && onDone();
-    } catch (e) { toast.error(apiError(e)); } finally { setLoading(false); }
-  };
+class BecomeSellerIn(BaseModel):
+    accept_seller_terms: bool
+    accept_marketplace_rules: bool
+    lat: Optional[float] = None
+    lng: Optional[float] = None
 
-  return (
-    <div className="max-w-lg mx-auto">
-      <div className="bg-card border border-border rounded-2xl p-6 md:p-8">
-        <div className="w-14 h-14 rounded-2xl bg-secondary/20 text-secondary-foreground flex items-center justify-center mb-4">
-          <Wrench className="w-7 h-7 text-primary" />
-        </div>
-        <h1 className="font-display text-2xl font-bold">Devni yon Teknisyen</h1>
-        <p className="text-muted-foreground mt-1">Fè kliyan ka jwenn ou pou reparasyon. Ranpli enfòmasyon yo epi kòmanse.</p>
 
-        <div className="mt-5 space-y-2">
-          <Req ok={user?.email_verified} label="Email verifye" />
-          <Req ok={true} label={`Non konplè: ${user?.full_name}`} />
-        </div>
+class SellerSettingsIn(BaseModel):
+    whatsapp_enabled: Optional[bool] = None
+    whatsapp_number: Optional[str] = None
+    show_phone: Optional[bool] = None
+    show_location: Optional[bool] = None
+    bio: Optional[str] = None
+    store_name: Optional[str] = None
+    store_description: Optional[str] = None
+    avatar: Optional[str] = None
+    lat: Optional[float] = None
+    lng: Optional[float] = None
 
-        <div className="mt-5">
-          <Label>Espesyalite ou yo</Label>
-          <div className="flex flex-wrap gap-2 mt-2">
-            {allSpecialties.map((s) => (
-              <button key={s} type="button" onClick={() => toggleSpecialty(s)} data-testid={`specialty-${s}`}
-                className={`text-xs px-3 py-1.5 rounded-full border font-medium transition-colors ${specialties.includes(s) ? "bg-primary text-white border-primary" : "border-border text-muted-foreground hover:border-primary"}`}>
-                {s}
-              </button>
-            ))}
-          </div>
-        </div>
 
-        <div className="mt-5">
-          <Label>Depatman kote ou sèvi</Label>
-          <div className="flex flex-wrap gap-2 mt-2">
-            {locations.map((d) => (
-              <button key={d.id} type="button" onClick={() => toggleDepartment(d.name)} data-testid={`service-dept-${d.name}`}
-                className={`text-xs px-3 py-1.5 rounded-full border font-medium transition-colors ${departments.includes(d.name) ? "bg-primary text-white border-primary" : "border-border text-muted-foreground hover:border-primary"}`}>
-                {d.name}
-              </button>
-            ))}
-          </div>
-        </div>
+@router.post("/seller/become")
+async def become_seller(data: BecomeSellerIn, user: dict = Depends(get_current_user)):
+    if user.get("role") in ("admin", "staff"):
+        raise HTTPException(status_code=403, detail="Kont Admin/Anplwaye pa ka vin Vandè — se yon wòl sipèvizyon, pa yon patisipan mache a.")
+    if not data.accept_seller_terms or not data.accept_marketplace_rules:
+        raise HTTPException(status_code=400, detail="Ou dwe aksepte règ vandè yo.")
+    if not user.get("email_verified"):
+        raise HTTPException(status_code=400, detail="Email ou dwe verifye.")
+    existing = await db.seller_profiles.find_one({"user_id": user["id"]})
+    if not existing:
+        await db.seller_profiles.insert_one({
+            "id": str(uuid.uuid4()),
+            "user_id": user["id"],
+            "status": "pending",
+            "seller_verified": False,
+            "whatsapp_enabled": True,
+            "whatsapp_number": user.get("phone", ""),
+            "show_phone": True,
+            "show_location": True,
+            "bio": "",
+            "store_name": "",
+            "store_description": "",
+            "lat": data.lat,
+            "lng": data.lng,
+            "rating": 0,
+            "review_count": 0,
+            "followers": 0,
+            "date_joined": now_iso(),
+        })
+    # is_seller is intentionally NOT set here — the account only gains
+    # seller capabilities (posting products, appearing as a Seller
+    # everywhere) once an admin approves this request. Until then the
+    # profile exists but sits pending, same as Suppliers already worked.
+    return {"message": "Demann ou voye! Li an atant apwobasyon admin anvan ou vin yon Vandè.", "status": "pending"}
 
-        <div className="mt-5">
-          <Label>Ti deskripsyon (opsyonèl)</Label>
-          <Textarea value={bio} onChange={(e) => setBio(e.target.value)} className="mt-1.5" rows={3} placeholder="Dekri eksperyans ou..." />
-        </div>
 
-        <div className="mt-5 grid grid-cols-2 gap-3">
-          <div>
-            <Label>Lang (opsyonèl)</Label>
-            <Input value={languages} onChange={(e) => setLanguages(e.target.value)} className="mt-1.5 h-11" placeholder="Kreyòl, Fransè" data-testid="technician-languages" />
-          </div>
-          <div>
-            <Label>Disponiblite</Label>
-            <Select value={availability} onValueChange={setAvailability}>
-              <SelectTrigger className="mt-1.5 h-11" data-testid="technician-availability"><SelectValue /></SelectTrigger>
-              <SelectContent>{AVAILABILITY_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
-            </Select>
-          </div>
-        </div>
+@router.get("/seller/profile")
+async def my_seller_profile(user: dict = Depends(get_current_user)):
+    prof = await db.seller_profiles.find_one({"user_id": user["id"]}, NO_ID)
+    if not prof:
+        raise HTTPException(status_code=404, detail="Ou poko yon vandè.")
+    return prof
 
-        <div className="mt-6 bg-muted/50 rounded-xl p-4">
-          <h3 className="font-semibold text-sm mb-2 flex items-center gap-1.5"><ShieldCheck className="w-4 h-4 text-primary" />Règ Teknisyen</h3>
-          <ul className="text-sm text-muted-foreground space-y-1 list-disc pl-5">
-            {TECHNICIAN_RULES.map((r, i) => <li key={i}>{r}</li>)}
-          </ul>
-        </div>
 
-        <label className="flex items-start gap-2 cursor-pointer mt-5">
-          <Checkbox checked={terms} onCheckedChange={(v) => setTerms(!!v)} data-testid="technician-terms" className="mt-0.5" />
-          <span className="text-sm">Mwen aksepte <b>Règ Teknisyen</b> yo.</span>
-        </label>
+@router.put("/seller/settings")
+async def update_seller_settings(data: SellerSettingsIn, user: dict = Depends(get_current_user)):
+    prof = await db.seller_profiles.find_one({"user_id": user["id"]})
+    if not prof:
+        raise HTTPException(status_code=404, detail="Ou poko yon vandè.")
+    updates = {k: v for k, v in data.model_dump().items() if v is not None and k != "avatar"}
+    if updates:
+        await db.seller_profiles.update_one({"user_id": user["id"]}, {"$set": updates})
+    if data.avatar is not None:
+        await db.users.update_one({"id": user["id"]}, {"$set": {"avatar": data.avatar}})
+    return {"message": "Paramèt anrejistre."}
 
-        <Button onClick={submit} disabled={loading || !user?.email_verified} data-testid="become-technician-submit" className="w-full h-11 mt-6 bg-primary font-semibold">
-          {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Aktive pwofil teknisyen mwen"}
-        </Button>
-        {!user?.email_verified && <p className="text-xs text-destructive mt-2 text-center">Verifye email ou anvan.</p>}
-      </div>
-    </div>
-  );
-}
 
-function Req({ ok, label }) {
-  return (
-    <div className="flex items-center gap-2 text-sm">
-      <CheckCircle2 className={`w-4 h-4 ${ok ? "text-emerald-500" : "text-muted-foreground/40"}`} />
-      <span className={ok ? "" : "text-muted-foreground"}>{label}</span>
-    </div>
-  );
-}
+@router.post("/seller/verify-request")
+async def request_verification(user: dict = Depends(get_current_user)):
+    if not user.get("is_seller"):
+        raise HTTPException(status_code=400, detail="Ou dwe yon vandè.")
+    existing = await db.seller_verifications.find_one({"user_id": user["id"], "status": "pending"})
+    if existing:
+        return {"message": "Demann verifikasyon ou deja an atant."}
+    await db.seller_verifications.insert_one({
+        "id": str(uuid.uuid4()),
+        "user_id": user["id"],
+        "username": user["username"],
+        "status": "pending",
+        "created_at": now_iso(),
+    })
+    return {"message": "Demann verifikasyon voye. Admin ap revize li."}
+
+
+@router.get("/seller/dashboard")
+async def seller_dashboard(user: dict = Depends(get_current_user)):
+    if not user.get("is_seller"):
+        raise HTTPException(status_code=403, detail="Ou poko yon vandè.")
+    sid = user["id"]
+    active = await db.products.count_documents({"seller_id": sid, "status": {"$in": ["active", "pending"]}})
+    sold = await db.products.count_documents({"seller_id": sid, "status": "sold"})
+    drafts = await db.products.count_documents({"seller_id": sid, "status": "draft"})
+    prods = await db.products.find({"seller_id": sid}, NO_ID).to_list(1000)
+    views = sum(p.get("views", 0) for p in prods)
+    favs = sum(p.get("favorites_count", 0) for p in prods)
+    convs = await db.conversations.find({"seller_id": sid}, NO_ID).to_list(1000)
+    unread = 0
+    for c in convs:
+        unread += await db.messages.count_documents({"conversation_id": c["id"], "sender_id": {"$ne": sid}, "read": False})
+    prof = await db.seller_profiles.find_one({"user_id": sid}, NO_ID)
+    return {
+        "stats": {"active": active, "sold": sold, "drafts": drafts, "views": views, "favorites": favs, "messages": unread},
+        "profile": prof,
+    }
+
+
+@router.get("/sellers/{username}")
+async def public_seller(username: str):
+    u = await db.users.find_one({"username": username.lower()}, NO_ID)
+    if not u:
+        raise HTTPException(status_code=404, detail="Vandè pa jwenn.")
+    prof = await db.seller_profiles.find_one({"user_id": u["id"]}, NO_ID)
+    if not prof:
+        raise HTTPException(status_code=404, detail="Vandè pa jwenn.")
+    product_count = await db.products.count_documents({"seller_id": u["id"], "status": "active"})
+    products = await db.products.find({"seller_id": u["id"], "status": "active"}, NO_ID).sort("created_at", -1).to_list(50)
+    for p in products:
+        p["images"] = p.get("images", [])[:1]
+        p.pop("imei", None)
+    return {
+        "user": {"id": u["id"], "full_name": u["full_name"], "username": u["username"], "avatar": u.get("avatar", ""),
+                 "department": u.get("department"), "city": u.get("city"), "created_at": u.get("created_at"),
+                 "email_verified": u.get("email_verified"), "phone_verified": u.get("phone_verified"),
+                 "phone": u.get("phone") if prof.get("show_phone") else None},
+        "profile": prof,
+        "product_count": product_count,
+        "products": products,
+    }
+
+
+@router.get("/sellers/{username}/reviews")
+async def seller_reviews(username: str):
+    u = await db.users.find_one({"username": username.lower()}, NO_ID)
+    if not u:
+        raise HTTPException(status_code=404, detail="Vandè pa jwenn.")
+    return await db.reviews.find({"seller_id": u["id"]}, NO_ID).sort("created_at", -1).to_list(200)
