@@ -14,7 +14,7 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 
-from shared import db, NO_ID, now_iso, get_current_user
+from shared import db, NO_ID, now_iso, get_current_user, create_notification
 
 router = APIRouter(prefix="/api", tags=["alerts"])
 
