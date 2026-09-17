@@ -244,7 +244,7 @@ SEARCH_RADII_KM = [2, 5, 10]  # progressive — stop at the first radius with ca
 
 
 class RequestIn(BaseModel):
-    service_type: ServiceType
+    service_type: str
     pickup_address: str
     pickup_lat: float
     pickup_lng: float
