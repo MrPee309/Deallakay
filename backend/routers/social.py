@@ -53,11 +53,22 @@ async def start_direct_conversation(other_user_id: str, user: dict = Depends(get
 
     is_biz_profile = bool(other.get("is_technician") or other.get("is_seller"))
     has_supplier_profile = await db.suppliers.find_one({"owner_id": other_user_id, "status": "active"}) is not None
-    has_alert_relationship = await db.alert_responses.find_one({
-        "$or": [
-            {"responder_id": user["id"]}, {"responder_id": other_user_id},
-        ],
+
+    # SECURITY FIX: the previous check only verified that EITHER user had
+    # EVER responded to ANY alert, with no link back to the OTHER specific
+    # user — so anyone who had ever responded to any alert could message any
+    # other user in the system. This now verifies a real A<->B relationship:
+    # either this user responded to an alert OWNED BY other_user_id, or
+    # other_user_id responded to an alert OWNED BY this user.
+    my_alert_ids = [a["id"] for a in await db.deal_alerts.find({"user_id": user["id"]}, {"id": 1}).to_list(1000)]
+    their_alert_ids = [a["id"] for a in await db.deal_alerts.find({"user_id": other_user_id}, {"id": 1}).to_list(1000)]
+    a_responded_to_b = their_alert_ids and await db.alert_responses.find_one({
+        "responder_id": user["id"], "alert_id": {"$in": their_alert_ids},
     }) is not None
+    b_responded_to_a = my_alert_ids and await db.alert_responses.find_one({
+        "responder_id": other_user_id, "alert_id": {"$in": my_alert_ids},
+    }) is not None
+    has_alert_relationship = bool(a_responded_to_b or b_responded_to_a)
     if not (is_biz_profile or has_supplier_profile or has_alert_relationship):
         raise HTTPException(status_code=403, detail="Pa gen relasyon DealLakay ki otorize konvèsasyon sa a.")
 
