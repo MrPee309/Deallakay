@@ -92,8 +92,8 @@ class TestAuth:
             "username": f"testu_{suffix}",
             "email": f"test_{suffix}@example.com",
             "phone": "+50930000000",
-            "password": "pass123",
-            "confirm_password": "pass123",
+            "password": "pass1234",
+            "confirm_password": "pass1234",
             "country": "Ayiti",
             "department": "Ouest",
             "city": "Port-au-Prince",
@@ -104,14 +104,14 @@ class TestAuth:
         link = r.json().get("demo_verification_link")
         assert link and "token=" in link
         # Login before verify -> 403
-        r2 = requests.post(f"{API}/auth/login", json={"username": payload["username"], "password": "pass123"})
+        r2 = requests.post(f"{API}/auth/login", json={"username": payload["username"], "password": "pass1234"})
         assert r2.status_code == 403
         # Verify
         token = link.split("token=")[1]
         r3 = requests.get(f"{API}/auth/verify-email", params={"token": token})
         assert r3.status_code == 200
         # Login after verify
-        r4 = requests.post(f"{API}/auth/login", json={"username": payload["username"], "password": "pass123"})
+        r4 = requests.post(f"{API}/auth/login", json={"username": payload["username"], "password": "pass1234"})
         assert r4.status_code == 200
 
     def test_register_password_mismatch(self):
