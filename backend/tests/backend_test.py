@@ -298,6 +298,31 @@ class TestInteractions:
         r2 = requests.post(f"{API}/reviews", headers=H(seller_token),
                            json={"seller_id": seller_id, "rating": 5, "comment": "self"})
         assert r2.status_code == 400
+
+    def test_messenger_requires_real_alert_relationship(self, buyer_token, seller_token):
+        """Regression test for the start_direct_conversation authorization
+        bypass: a user must have actually responded to the OTHER specific
+        user's alert (in either direction), not merely have responded to
+        *some* alert anywhere in the system."""
+        buyer_id = requests.get(f"{API}/auth/me", headers=H(buyer_token)).json()["id"]
+        seller_id = requests.get(f"{API}/auth/me", headers=H(seller_token)).json()["id"]
+
+        # buyer (client) posts a DEMAND
+        alert_r = requests.post(f"{API}/alerts", headers=H(buyer_token),
+                                 json={"alert_type": "DEMAND", "keyword": "TEST_msg_relationship"})
+        assert alert_r.status_code == 200, alert_r.text
+        aid = alert_r.json()["id"]
+
+        # seller responds to buyer's DEMAND — this is the real relationship
+        resp_r = requests.post(f"{API}/alerts/{aid}/respond", headers=H(seller_token),
+                                json={"message": "TEST offer"})
+        assert resp_r.status_code == 200, resp_r.text
+
+        # Both directions must now be allowed
+        r_buyer_to_seller = requests.post(f"{API}/conversations/with/{seller_id}", headers=H(buyer_token))
+        assert r_buyer_to_seller.status_code == 200, r_buyer_to_seller.text
+        r_seller_to_buyer = requests.post(f"{API}/conversations/with/{buyer_id}", headers=H(seller_token))
+        assert r_seller_to_buyer.status_code == 200, r_seller_to_buyer.text
         # get reviews
         r3 = requests.get(f"{API}/sellers/petertech/reviews")
         assert r3.status_code == 200
