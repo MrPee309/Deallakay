@@ -71,7 +71,7 @@ export default function Home() {
           <img
             src="/images/home/hero-visual.jpg"
             alt="Jwenn sèvis ak pwodwi toupre w ann Ayiti"
-            className="absolute inset-0 w-full h-full object-cover object-right"
+            className="absolute inset-0 w-full h-full object-cover object-center"
           />
           <div
             className="absolute inset-y-0 left-0 w-1/6 pointer-events-none"
@@ -92,9 +92,16 @@ export default function Home() {
             <defs>
               <mask id="heroWaveMask" maskContentUnits="objectBoundingBox">
                 <linearGradient id="heroWaveGrad" x1="0" y1="0" x2="1" y2="0">
+                  {/* Narrowed from 0%/24%/42% — with the crop now centered
+                      (object-center, was object-right) more of the image's
+                      own left side is visible than before, including the
+                      woman; the old wider hidden zone would have faded her
+                      out again. This is a conservative first pass — verify
+                      visually and nudge these percentages further if she's
+                      still partly obscured. */}
                   <stop offset="0%" stopColor="black" />
-                  <stop offset="24%" stopColor="black" />
-                  <stop offset="42%" stopColor="white" />
+                  <stop offset="8%" stopColor="black" />
+                  <stop offset="22%" stopColor="white" />
                 </linearGradient>
                 <path
                   d="M -0.1,-0.1 C 0.1,0.08 0.05,0.22 0.14,0.35 C 0.22,0.48 0.09,0.62 0.16,0.78 C 0.21,0.88 0.14,0.98 0.18,1.1 L 1.1,1.1 L 1.1,-0.1 Z"
@@ -107,7 +114,7 @@ export default function Home() {
             src="/images/home/hero-visual.jpg"
             alt="Jwenn sèvis ak pwodwi toupre w ann Ayiti"
             data-testid="home-hero-visual"
-            className="absolute inset-0 w-full h-full object-cover object-right"
+            className="absolute inset-0 w-full h-full object-cover object-center"
             style={{ WebkitMaskImage: "url(#heroWaveMask)", maskImage: "url(#heroWaveMask)" }}
           />
         </div>
@@ -158,7 +165,7 @@ export default function Home() {
               <img
                 src="/images/home/hero-visual.jpg"
                 alt="Jwenn sèvis ak pwodwi toupre w ann Ayiti"
-                className="absolute inset-0 w-full h-full object-cover object-right rounded-2xl"
+                className="absolute inset-0 w-full h-full object-cover object-center rounded-2xl"
               />
             </div>
             <div className="hidden lg:block" />
