@@ -94,3 +94,10 @@ h1, h2, h3, h4, h5, .font-display {
         animation: none;
     }
 }
+
+/* FIXED: used in MobileNav.jsx (fixed bottom-0 nav bar) but never actually
+   defined anywhere — it was a silent no-op class, giving zero real
+   protection against the home-indicator area on notched iPhones. */
+.pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+}
