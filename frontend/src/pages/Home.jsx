@@ -148,7 +148,13 @@ export default function Home() {
                 image renders full-height above, outside this padded flow.
                 On mobile/tablet (no room for a side-by-side image), fall
                 back to a normal inline image instead of hiding it. */}
-            <div className="relative lg:hidden w-full min-h-[280px]">
+            {/* FIXED: a single fixed min-h-[280px] applied uniformly across
+                the entire <1024px range produced very different crops on a
+                320px phone vs. a 768px tablet portrait (same height, very
+                different width-to-height ratio) — an aspect-ratio scales
+                proportionally with width instead, giving a consistent crop
+                across small phones through tablet portrait. */}
+            <div className="relative lg:hidden w-full aspect-[4/3] sm:aspect-[16/10]">
               <img
                 src="/images/home/hero-visual.jpg"
                 alt="Jwenn sèvis ak pwodwi toupre w ann Ayiti"
