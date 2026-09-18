@@ -53,7 +53,14 @@ export default function Home() {
   return (
     <div>
       {/* Hero */}
-      <section className="relative hero-grid border-b border-border overflow-hidden">
+      {/* min-h grows at larger breakpoints — FIXED: without this, section
+          height was driven purely by the (roughly fixed-height) text
+          column, so on very wide monitors (2560px, 3840px...) the image
+          container's width kept growing while its height stayed the same,
+          producing an extreme letterbox crop that cut off the woman's
+          head. Taller min-heights at xl/2xl give the image proportionally
+          more vertical room to work with on those screens. */}
+      <section className="relative hero-grid border-b border-border overflow-hidden xl:min-h-[600px] 2xl:min-h-[720px]">
         {/* Image is a sibling of the padded text container, absolutely
             positioned against the SECTION itself — so it spans the full
             height of the blue hero area edge-to-edge (top and bottom),
@@ -71,7 +78,7 @@ export default function Home() {
           <img
             src="/images/home/hero-visual.jpg"
             alt="Jwenn sèvis ak pwodwi toupre w ann Ayiti"
-            className="absolute inset-0 w-full h-full object-cover object-center"
+            className="absolute inset-0 w-full h-full object-cover object-[50%_28%]"
           />
           <div
             className="absolute inset-y-0 left-0 w-1/6 pointer-events-none"
@@ -114,7 +121,7 @@ export default function Home() {
             src="/images/home/hero-visual.jpg"
             alt="Jwenn sèvis ak pwodwi toupre w ann Ayiti"
             data-testid="home-hero-visual"
-            className="absolute inset-0 w-full h-full object-cover object-center"
+            className="absolute inset-0 w-full h-full object-cover object-[50%_28%]"
             style={{ WebkitMaskImage: "url(#heroWaveMask)", maskImage: "url(#heroWaveMask)" }}
           />
         </div>
@@ -165,7 +172,7 @@ export default function Home() {
               <img
                 src="/images/home/hero-visual.jpg"
                 alt="Jwenn sèvis ak pwodwi toupre w ann Ayiti"
-                className="absolute inset-0 w-full h-full object-cover object-center rounded-2xl"
+                className="absolute inset-0 w-full h-full object-cover object-[50%_28%] rounded-2xl"
               />
             </div>
             <div className="hidden lg:block" />
