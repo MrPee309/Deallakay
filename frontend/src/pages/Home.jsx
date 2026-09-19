@@ -61,7 +61,7 @@ export default function Home() {
           head. Taller min-heights at xl/2xl give the image proportionally
           more vertical room to work with on those screens. */}
       <section className="relative hero-grid border-b border-border overflow-hidden xl:min-h-[600px] 2xl:min-h-[720px]">
-        <div className="max-w-7xl mx-auto px-4 lg:px-6 py-14 md:py-20 relative h-full">
+        <div className="max-w-7xl 2xl:max-w-[1800px] [@media(min-width:2560px)]:max-w-[2400px] mx-auto px-4 lg:px-6 py-14 md:py-20 relative h-full">
           {/* FIXED: the image div used to be a sibling of this max-w-7xl
               container, positioned absolute right-0 against the full-width
               <section> itself. On screens wider than ~1280px+padding, this
