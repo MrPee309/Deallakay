@@ -61,7 +61,15 @@ export default function Home() {
           head. Taller min-heights at xl/2xl give the image proportionally
           more vertical room to work with on those screens. */}
       <section className="relative hero-grid border-b border-border overflow-hidden xl:min-h-[600px] 2xl:min-h-[720px]">
-        <div className="max-w-7xl 2xl:max-w-[2100px] [@media(min-width:2560px)]:max-w-[2800px] mx-auto px-4 lg:px-6 py-14 md:py-20 relative h-full">
+        {/* FIXED: h-full here required the parent <section> to have an
+            explicit height to fill — but the section only gets min-h at
+            xl:/2xl:, so below 1280px its height is purely content-driven
+            (correct, normal behavior). h-full against an auto-height
+            parent is a circular sizing reference that collapses/breaks
+            layout in most browsers — this was the actual root cause of
+            everything looking wrapped/squished since the large-screen
+            margin fix, not any of the text-width values tuned afterward. */}
+        <div className="max-w-7xl 2xl:max-w-[2100px] [@media(min-width:2560px)]:max-w-[2800px] mx-auto px-4 lg:px-6 py-14 md:py-20 relative">
           {/* FIXED: the image div used to be a sibling of this max-w-7xl
               container, positioned absolute right-0 against the full-width
               <section> itself. On screens wider than ~1280px+padding, this
