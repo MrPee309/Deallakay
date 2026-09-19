@@ -113,10 +113,39 @@ export default function Home() {
               <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-white bg-primary px-3 py-1 rounded-full mb-5">
                 <Tag className="w-3.5 h-3.5" /> Marketplace teknoloji ann Ayiti
               </span>
-              <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl font-800 tracking-tight leading-[1.05]" style={{ fontWeight: 800 }}>
+              {/* FIXED: text size capped out at lg:text-6xl (≈60px) for
+                  EVERYTHING 1024px and up — including a 1920px TV screen
+                  or a 4K display, both viewed from much farther away than
+                  a desktop monitor, where that size reads as small.
+                  Progressive sizing continues past lg so text keeps
+                  growing on genuinely large/far-viewed screens instead of
+                  plateauing. */}
+              <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl 2xl:text-7xl 2xl:leading-[1.15] [@media(min-width:2560px)]:text-8xl [@media(min-width:2560px)]:leading-[1.15] font-800 tracking-tight leading-[1.15]" style={{ fontWeight: 800 }}>
                 Jwenn sa w bezwen.<br /><span className="text-primary">Vann sa w pa bezwen.</span>
               </h1>
-              <p className="text-base md:text-lg text-muted-foreground mt-5 max-w-xl">{t("heroSubtitle")}</p>
+              <p className="text-base md:text-lg 2xl:text-xl [@media(min-width:2560px)]:text-2xl text-muted-foreground mt-5 max-w-xl [@media(min-width:2560px)]:max-w-3xl">{t("heroSubtitle")}</p>
+
+              {/* New — was only in the reference mockup, never actually
+                  built. Compact icon row summarizing the categories named
+                  in the subtitle above, giving the left column more
+                  visual weight/fill instead of jumping straight to the
+                  search bar. */}
+              <div className="flex flex-wrap gap-x-5 gap-y-3 mt-6">
+                {[
+                  { Icon: Icons.Smartphone, label: "Telefòn" },
+                  { Icon: Icons.Laptop, label: "Laptop" },
+                  { Icon: Icons.Cog, label: "Pyès" },
+                  { Icon: Icons.Headphones, label: "Aksèswa" },
+                  { Icon: Icons.Wrench, label: "Teknisyen" },
+                ].map(({ Icon, label }) => (
+                  <div key={label} className="flex flex-col items-center gap-1.5 w-14">
+                    <div className="w-11 h-11 rounded-full bg-white border border-border shadow-sm flex items-center justify-center">
+                      <Icon className="w-5 h-5 text-primary" />
+                    </div>
+                    <span className="text-xs text-muted-foreground text-center leading-tight">{label}</span>
+                  </div>
+                ))}
+              </div>
 
               <form onSubmit={submit} className="mt-8 flex flex-col sm:flex-row gap-2 max-w-2xl">
                 <div className="relative flex-1">
@@ -126,13 +155,13 @@ export default function Home() {
                     value={q}
                     onChange={(e) => setQ(e.target.value)}
                     placeholder={t("searchPlaceholder")}
-                    className="w-full h-14 pl-12 pr-4 rounded-xl border border-border bg-white shadow-sm text-base focus:outline-none focus:ring-2 focus:ring-primary/40"
+                    className="w-full h-11 pl-12 pr-4 rounded-xl border border-border bg-white shadow-sm text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
                   />
                 </div>
-                <Button data-testid="hero-search-btn" type="submit" className="h-14 px-8 rounded-xl bg-primary text-base font-semibold active:scale-95 transition-transform">
+                <Button data-testid="hero-search-btn" type="submit" className="h-11 px-6 rounded-xl bg-primary text-sm font-semibold active:scale-95 transition-transform">
                   {t("search")}
                 </Button>
-                <Button data-testid="hero-sell-btn" type="button" onClick={() => nav("/sell")} className="h-14 px-6 rounded-xl bg-secondary text-secondary-foreground hover:bg-secondary/90 text-base font-semibold active:scale-95 transition-transform">
+                <Button data-testid="hero-sell-btn" type="button" onClick={() => nav("/sell")} className="h-11 px-5 rounded-xl bg-secondary text-secondary-foreground hover:bg-secondary/90 text-sm font-semibold active:scale-95 transition-transform">
                   {t("sellProduct")}
                 </Button>
               </form>
