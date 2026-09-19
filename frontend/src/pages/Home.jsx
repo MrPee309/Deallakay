@@ -74,19 +74,11 @@ export default function Home() {
             because this container itself is narrower, so the same
             proportional fade width would otherwise cut into the woman
             instead of staying confined to the empty sky/background area. */}
-        <div className="hidden lg:block xl:hidden absolute inset-y-0 right-0 w-1/2">
-          <img
-            src="/images/home/hero-visual.jpg"
-            alt="Jwenn sèvis ak pwodwi toupre w ann Ayiti"
-            className="absolute inset-0 w-full h-full object-cover object-[50%_28%]"
-          />
-          <div
-            className="absolute inset-y-0 left-0 w-1/6 pointer-events-none"
-            style={{ background: "linear-gradient(to right, #F3F7FF, transparent)" }}
-          />
-        </div>
-
-        {/* Tier 3 — large desktop (≥1280px). FIXED: the previous wavy
+        {/* Tier 2 — md (≥768px) and up now all use the wide image; the
+            previous separate "tablet" tier (lg–xl, still using the
+            narrower photo) became redundant once the switch point moved
+            down to 768px, so it's removed rather than left dead. */}
+        {/* Tier 2 — large desktop (≥768px). FIXED: the previous wavy
             SVG mask used maskContentUnits="objectBoundingBox", which
             stretches its fixed 0–1 path non-uniformly to match whatever
             aspect ratio this container happens to have — so the curve's
@@ -102,7 +94,7 @@ export default function Home() {
             stays centered and fully visible at this container's much
             wider aspect ratio, rather than relying on object-position
             tricks against an image shot for a narrower frame. */}
-        <div className="hidden xl:block absolute inset-y-0 right-0 w-[78%]">
+        <div className="hidden md:block absolute inset-y-0 right-0 w-[78%]">
           <img
             src="/images/home/hero-visual-wide.jpg"
             alt="Jwenn sèvis ak pwodwi toupre w ann Ayiti"
@@ -116,7 +108,7 @@ export default function Home() {
         </div>
 
         <div className="max-w-7xl mx-auto px-4 lg:px-6 py-14 md:py-20 relative">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-8 items-center">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-10 md:gap-8 items-center">
             <div className="max-w-3xl">
               <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-white bg-primary px-3 py-1 rounded-full mb-5">
                 <Tag className="w-3.5 h-3.5" /> Marketplace teknoloji ann Ayiti
@@ -157,14 +149,14 @@ export default function Home() {
                 different width-to-height ratio) — an aspect-ratio scales
                 proportionally with width instead, giving a consistent crop
                 across small phones through tablet portrait. */}
-            <div className="relative lg:hidden w-full aspect-[4/3] sm:aspect-[16/10]">
+            <div className="relative md:hidden w-full aspect-[4/3] sm:aspect-[16/10]">
               <img
                 src="/images/home/hero-visual.jpg"
                 alt="Jwenn sèvis ak pwodwi toupre w ann Ayiti"
                 className="absolute inset-0 w-full h-full object-cover object-[50%_28%] rounded-2xl"
               />
             </div>
-            <div className="hidden lg:block" />
+            <div className="hidden md:block" />
           </div>
         </div>
       </section>
