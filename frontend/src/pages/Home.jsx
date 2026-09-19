@@ -60,82 +60,28 @@ export default function Home() {
           producing an extreme letterbox crop that cut off the woman's
           head. Taller min-heights at xl/2xl give the image proportionally
           more vertical room to work with on those screens. */}
-      <section className="relative hero-grid border-b border-border overflow-hidden xl:min-h-[600px] 2xl:min-h-[720px]">
-        {/* FIXED: h-full here required the parent <section> to have an
-            explicit height to fill — but the section only gets min-h at
-            xl:/2xl:, so below 1280px its height is purely content-driven
-            (correct, normal behavior). h-full against an auto-height
-            parent is a circular sizing reference that collapses/breaks
-            layout in most browsers — this was the actual root cause of
-            everything looking wrapped/squished since the large-screen
-            margin fix, not any of the text-width values tuned afterward. */}
-        <div className="max-w-7xl 2xl:max-w-[2100px] [@media(min-width:2560px)]:max-w-[2800px] mx-auto px-4 lg:px-6 py-14 md:py-20 relative">
-          {/* FIXED: the image div used to be a sibling of this max-w-7xl
-              container, positioned absolute right-0 against the full-width
-              <section> itself. On screens wider than ~1280px+padding, this
-              container centers with growing side margins while the image
-              stayed glued to the true viewport edge — the two drifted out
-              of alignment the wider the screen got. Moving the image
-              inside this same constrained, centered container keeps both
-              anchored to the same right edge at every width. */}
-          <div className="hidden md:block absolute inset-y-0 right-0 w-[78%]">
-            <img
-              src="/images/home/hero-visual-wide.jpg"
-              alt="Jwenn sèvis ak pwodwi toupre w ann Ayiti"
-              data-testid="home-hero-visual-wide"
-              className="absolute inset-0 w-full h-full object-cover object-center"
-            />
-            <div
-              className="absolute inset-y-0 left-0 w-1/5 pointer-events-none"
-              style={{ background: "linear-gradient(to right, #F3F7FF, transparent)" }}
-            />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-10 md:gap-8 items-center">
-            {/* FIXED: max-w-3xl scales with the grid column's own share of
-                an increasingly wide container — at 2400px that column
-                could grow enough to push text into the image's territory
-                (which occupies a fixed 78% from the right regardless of
-                container width). A fixed cap in px means the text block
-                never grows past a safe, readable width no matter how wide
-                the outer container gets. */}
-            {/* FIXED: capped at a flat 520px regardless of breakpoint, but
-                the headline's font-size keeps growing up to text-8xl at
-                2560px+ — at that size a single word like "bezwen." can be
-                wider than 520px itself, so it was overflowing (and now
-                getting clipped by the new html/body overflow-x:hidden
-                safety net) instead of wrapping cleanly. The container now
-                grows at the SAME breakpoints the font-size does. */}
-            {/* FIXED: the previous fixed max-w (520→560px) was much too
-                narrow once combined with the larger responsive font sizes
-                — it wasn't clipping text, it was forcing it to wrap after
-                nearly every word, stacking into a tall narrow column that
-                LOOKED cut off. Removing the fixed cap and letting the text
-                simply fill its own grid column (matching the reference
-                mockup, where the headline comfortably fits on one line)
-                fixes this properly instead of just tuning the wrong knob
-                again. */}
-            <div className="w-full">
+      {/* REBUILT — after many rounds of tuning specific values without
+          resolving a persistent "text looks boxed/cut" symptom, this
+          replaces the layered absolute-positioning + fade-mask approach
+          entirely with a plain, ordinary responsive grid: image and text
+          as normal grid children (no position:absolute, no fixed heights,
+          no custom breakpoint math). This sacrifices some visual polish
+          (the soft fade transition into the photo) but is far more likely
+          to simply work correctly across arbitrary screen sizes, since it
+          relies on nothing but the browser's normal, well-tested block/
+          grid layout instead of several interacting custom rules. */}
+      <section className="relative border-b border-border">
+        <div className="max-w-7xl mx-auto px-4 lg:px-6 py-14 md:py-20">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-10 md:gap-12 items-center">
+            <div>
               <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-white bg-primary px-3 py-1 rounded-full mb-5">
                 <Tag className="w-3.5 h-3.5" /> Marketplace teknoloji ann Ayiti
               </span>
-              {/* FIXED: text size capped out at lg:text-6xl (≈60px) for
-                  EVERYTHING 1024px and up — including a 1920px TV screen
-                  or a 4K display, both viewed from much farther away than
-                  a desktop monitor, where that size reads as small.
-                  Progressive sizing continues past lg so text keeps
-                  growing on genuinely large/far-viewed screens instead of
-                  plateauing. */}
-              <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl 2xl:text-7xl 2xl:leading-[1.15] [@media(min-width:2560px)]:text-8xl [@media(min-width:2560px)]:leading-[1.15] font-800 tracking-tight leading-[1.15] break-words" style={{ fontWeight: 800 }}>
+              <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl font-800 tracking-tight leading-[1.15]" style={{ fontWeight: 800 }}>
                 Jwenn sa w bezwen.<br /><span className="text-primary">Vann sa w pa bezwen.</span>
               </h1>
-              <p className="text-base md:text-lg 2xl:text-xl [@media(min-width:2560px)]:text-2xl text-muted-foreground mt-5 max-w-xl [@media(min-width:2560px)]:max-w-3xl">{t("heroSubtitle")}</p>
+              <p className="text-base md:text-lg text-muted-foreground mt-5 max-w-xl">{t("heroSubtitle")}</p>
 
-              {/* New — was only in the reference mockup, never actually
-                  built. Compact icon row summarizing the categories named
-                  in the subtitle above, giving the left column more
-                  visual weight/fill instead of jumping straight to the
-                  search bar. */}
               <div className="flex flex-wrap gap-x-5 gap-y-3 mt-6">
                 {[
                   { Icon: Icons.Smartphone, label: "Telefòn" },
@@ -173,25 +119,17 @@ export default function Home() {
               </form>
             </div>
 
-            {/* Empty spacer column on large screens — reserves the grid slot
-                so the text column stays the same width as before; the real
-                image renders full-height above, outside this padded flow.
-                On mobile/tablet (no room for a side-by-side image), fall
-                back to a normal inline image instead of hiding it. */}
-            {/* FIXED: a single fixed min-h-[280px] applied uniformly across
-                the entire <1024px range produced very different crops on a
-                320px phone vs. a 768px tablet portrait (same height, very
-                different width-to-height ratio) — an aspect-ratio scales
-                proportionally with width instead, giving a consistent crop
-                across small phones through tablet portrait. */}
-            <div className="relative md:hidden w-full aspect-[4/3] sm:aspect-[16/10]">
+            {/* Plain, ordinary <img> in normal flow — no absolute
+                positioning, no fade mask, no custom height math. Simply
+                sits in its own grid cell like any other image. */}
+            <div className="w-full aspect-[4/3] md:aspect-[16/10] rounded-2xl overflow-hidden">
               <img
-                src="/images/home/hero-visual.jpg"
+                src="/images/home/hero-visual-wide.jpg"
                 alt="Jwenn sèvis ak pwodwi toupre w ann Ayiti"
-                className="absolute inset-0 w-full h-full object-cover object-[50%_28%] rounded-2xl"
+                data-testid="home-hero-visual"
+                className="w-full h-full object-cover object-center"
               />
             </div>
-            <div className="hidden md:block" />
           </div>
         </div>
       </section>
