@@ -61,53 +61,28 @@ export default function Home() {
           head. Taller min-heights at xl/2xl give the image proportionally
           more vertical room to work with on those screens. */}
       <section className="relative hero-grid border-b border-border overflow-hidden xl:min-h-[600px] 2xl:min-h-[720px]">
-        {/* Image is a sibling of the padded text container, absolutely
-            positioned against the SECTION itself — so it spans the full
-            height of the blue hero area edge-to-edge (top and bottom),
-            unaffected by the text column's own vertical padding. */}
-        {/* Tier 2 — tablet landscape / small desktop (1024–1279px, e.g.
-            iPad 11"–12.9" in landscape): same side-by-side layout as the
-            large-desktop tier, but with a simple straight left-edge fade
-            instead of the elaborate wave mask — the curved mask's fixed
-            proportions don't hold up well at this narrower width. The fade
-            zone is narrower than the desktop version (1/6 instead of 1/3)
-            because this container itself is narrower, so the same
-            proportional fade width would otherwise cut into the woman
-            instead of staying confined to the empty sky/background area. */}
-        {/* Tier 2 — md (≥768px) and up now all use the wide image; the
-            previous separate "tablet" tier (lg–xl, still using the
-            narrower photo) became redundant once the switch point moved
-            down to 768px, so it's removed rather than left dead. */}
-        {/* Tier 2 — large desktop (≥768px). FIXED: the previous wavy
-            SVG mask used maskContentUnits="objectBoundingBox", which
-            stretches its fixed 0–1 path non-uniformly to match whatever
-            aspect ratio this container happens to have — so the curve's
-            shape (and how much of the image it revealed) looked different
-            at every resolution (1920×1080 vs 2560×1440 vs 3840×2160 vs
-            1024×1366 all distorted it differently). A straight linear
-            gradient fade — the same technique already used for the
-            tablet tier above — scales identically regardless of aspect
-            ratio, so the fade now looks the same everywhere. */}
-        {/* Large-desktop tier uses a dedicated wide-composed image
-            (2:1 aspect ratio, no baked-in text) instead of the same
-            crop as mobile/tablet — composed specifically so the woman
-            stays centered and fully visible at this container's much
-            wider aspect ratio, rather than relying on object-position
-            tricks against an image shot for a narrower frame. */}
-        <div className="hidden md:block absolute inset-y-0 right-0 w-[78%]">
-          <img
-            src="/images/home/hero-visual-wide.jpg"
-            alt="Jwenn sèvis ak pwodwi toupre w ann Ayiti"
-            data-testid="home-hero-visual-wide"
-            className="absolute inset-0 w-full h-full object-cover object-center"
-          />
-          <div
-            className="absolute inset-y-0 left-0 w-1/5 pointer-events-none"
-            style={{ background: "linear-gradient(to right, #F3F7FF, transparent)" }}
-          />
-        </div>
+        <div className="max-w-7xl mx-auto px-4 lg:px-6 py-14 md:py-20 relative h-full">
+          {/* FIXED: the image div used to be a sibling of this max-w-7xl
+              container, positioned absolute right-0 against the full-width
+              <section> itself. On screens wider than ~1280px+padding, this
+              container centers with growing side margins while the image
+              stayed glued to the true viewport edge — the two drifted out
+              of alignment the wider the screen got. Moving the image
+              inside this same constrained, centered container keeps both
+              anchored to the same right edge at every width. */}
+          <div className="hidden md:block absolute inset-y-0 right-0 w-[78%]">
+            <img
+              src="/images/home/hero-visual-wide.jpg"
+              alt="Jwenn sèvis ak pwodwi toupre w ann Ayiti"
+              data-testid="home-hero-visual-wide"
+              className="absolute inset-0 w-full h-full object-cover object-center"
+            />
+            <div
+              className="absolute inset-y-0 left-0 w-1/5 pointer-events-none"
+              style={{ background: "linear-gradient(to right, #F3F7FF, transparent)" }}
+            />
+          </div>
 
-        <div className="max-w-7xl mx-auto px-4 lg:px-6 py-14 md:py-20 relative">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-10 md:gap-8 items-center">
             <div className="max-w-3xl">
               <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-white bg-primary px-3 py-1 rounded-full mb-5">
