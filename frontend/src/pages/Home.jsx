@@ -91,7 +91,14 @@ export default function Home() {
                 container width). A fixed cap in px means the text block
                 never grows past a safe, readable width no matter how wide
                 the outer container gets. */}
-            <div className="max-w-[520px]">
+            {/* FIXED: capped at a flat 520px regardless of breakpoint, but
+                the headline's font-size keeps growing up to text-8xl at
+                2560px+ — at that size a single word like "bezwen." can be
+                wider than 520px itself, so it was overflowing (and now
+                getting clipped by the new html/body overflow-x:hidden
+                safety net) instead of wrapping cleanly. The container now
+                grows at the SAME breakpoints the font-size does. */}
+            <div className="max-w-[560px] 2xl:max-w-[680px] [@media(min-width:2560px)]:max-w-[860px]">
               <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-white bg-primary px-3 py-1 rounded-full mb-5">
                 <Tag className="w-3.5 h-3.5" /> Marketplace teknoloji ann Ayiti
               </span>
@@ -102,7 +109,7 @@ export default function Home() {
                   Progressive sizing continues past lg so text keeps
                   growing on genuinely large/far-viewed screens instead of
                   plateauing. */}
-              <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl 2xl:text-7xl 2xl:leading-[1.15] [@media(min-width:2560px)]:text-8xl [@media(min-width:2560px)]:leading-[1.15] font-800 tracking-tight leading-[1.15]" style={{ fontWeight: 800 }}>
+              <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl 2xl:text-7xl 2xl:leading-[1.15] [@media(min-width:2560px)]:text-8xl [@media(min-width:2560px)]:leading-[1.15] font-800 tracking-tight leading-[1.15] break-words" style={{ fontWeight: 800 }}>
                 Jwenn sa w bezwen.<br /><span className="text-primary">Vann sa w pa bezwen.</span>
               </h1>
               <p className="text-base md:text-lg 2xl:text-xl [@media(min-width:2560px)]:text-2xl text-muted-foreground mt-5 max-w-xl [@media(min-width:2560px)]:max-w-3xl">{t("heroSubtitle")}</p>
