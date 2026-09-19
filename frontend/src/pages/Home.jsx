@@ -86,43 +86,32 @@ export default function Home() {
           />
         </div>
 
-        {/* Tier 3 — large desktop (≥1280px): full wave-mask treatment. */}
+        {/* Tier 3 — large desktop (≥1280px). FIXED: the previous wavy
+            SVG mask used maskContentUnits="objectBoundingBox", which
+            stretches its fixed 0–1 path non-uniformly to match whatever
+            aspect ratio this container happens to have — so the curve's
+            shape (and how much of the image it revealed) looked different
+            at every resolution (1920×1080 vs 2560×1440 vs 3840×2160 vs
+            1024×1366 all distorted it differently). A straight linear
+            gradient fade — the same technique already used for the
+            tablet tier above — scales identically regardless of aspect
+            ratio, so the fade now looks the same everywhere. */}
+        {/* Large-desktop tier uses a dedicated wide-composed image
+            (2:1 aspect ratio, no baked-in text) instead of the same
+            crop as mobile/tablet — composed specifically so the woman
+            stays centered and fully visible at this container's much
+            wider aspect ratio, rather than relying on object-position
+            tricks against an image shot for a narrower frame. */}
         <div className="hidden xl:block absolute inset-y-0 right-0 w-[78%]">
-          {/* SVG wave-shaped mask: fades the image smoothly into the hero's
-              light-blue background along a curved boundary (not a straight
-              line, not a vignette on all sides) — the woman and phone stay
-              fully visible; only the sky/mountain area on the left blends
-              away. The gradient's fully-transparent zone extends past
-              where the curve itself wobbles, so no hard edge is ever
-              visible along the curve. */}
-          <svg width="0" height="0" aria-hidden="true">
-            <defs>
-              <mask id="heroWaveMask" maskContentUnits="objectBoundingBox">
-                <linearGradient id="heroWaveGrad" x1="0" y1="0" x2="1" y2="0">
-                  {/* Narrowed from 0%/24%/42% — with the crop now centered
-                      (object-center, was object-right) more of the image's
-                      own left side is visible than before, including the
-                      woman; the old wider hidden zone would have faded her
-                      out again. This is a conservative first pass — verify
-                      visually and nudge these percentages further if she's
-                      still partly obscured. */}
-                  <stop offset="0%" stopColor="black" />
-                  <stop offset="8%" stopColor="black" />
-                  <stop offset="22%" stopColor="white" />
-                </linearGradient>
-                <path
-                  d="M -0.1,-0.1 C 0.1,0.08 0.05,0.22 0.14,0.35 C 0.22,0.48 0.09,0.62 0.16,0.78 C 0.21,0.88 0.14,0.98 0.18,1.1 L 1.1,1.1 L 1.1,-0.1 Z"
-                  fill="url(#heroWaveGrad)"
-                />
-              </mask>
-            </defs>
-          </svg>
           <img
-            src="/images/home/hero-visual.jpg"
+            src="/images/home/hero-visual-wide.jpg"
             alt="Jwenn sèvis ak pwodwi toupre w ann Ayiti"
-            data-testid="home-hero-visual"
-            className="absolute inset-0 w-full h-full object-cover object-[50%_28%]"
-            style={{ WebkitMaskImage: "url(#heroWaveMask)", maskImage: "url(#heroWaveMask)" }}
+            data-testid="home-hero-visual-wide"
+            className="absolute inset-0 w-full h-full object-cover object-center"
+          />
+          <div
+            className="absolute inset-y-0 left-0 w-1/5 pointer-events-none"
+            style={{ background: "linear-gradient(to right, #F3F7FF, transparent)" }}
           />
         </div>
 
