@@ -98,7 +98,16 @@ export default function Home() {
                 getting clipped by the new html/body overflow-x:hidden
                 safety net) instead of wrapping cleanly. The container now
                 grows at the SAME breakpoints the font-size does. */}
-            <div className="max-w-[560px] 2xl:max-w-[680px] [@media(min-width:2560px)]:max-w-[860px]">
+            {/* FIXED: the previous fixed max-w (520→560px) was much too
+                narrow once combined with the larger responsive font sizes
+                — it wasn't clipping text, it was forcing it to wrap after
+                nearly every word, stacking into a tall narrow column that
+                LOOKED cut off. Removing the fixed cap and letting the text
+                simply fill its own grid column (matching the reference
+                mockup, where the headline comfortably fits on one line)
+                fixes this properly instead of just tuning the wrong knob
+                again. */}
+            <div className="w-full">
               <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-white bg-primary px-3 py-1 rounded-full mb-5">
                 <Tag className="w-3.5 h-3.5" /> Marketplace teknoloji ann Ayiti
               </span>
