@@ -70,85 +70,94 @@ export default function Home() {
           to simply work correctly across arbitrary screen sizes, since it
           relies on nothing but the browser's normal, well-tested block/
           grid layout instead of several interacting custom rules. */}
-      {/* REBUILT AGAIN — photo now works as a true full-bleed section
-          background (CSS background-image, not a laid-out <img> element)
-          matching the original design intent: text sits in normal
-          document flow on the left, with the photo running the full
-          width/height behind everything. A gradient overlay (layered
-          together with the image in one `background` shorthand) keeps
-          the left side light enough for the dark text to stay readable,
-          fading into the plain photo on the right — same visual idea as
-          much earlier attempts, but this time the image is pure CSS
-          background rather than a positioned/sized element of its own,
-          so it can never itself cause a layout/overflow bug again. */}
-      <section
-        className="relative border-b border-border bg-cover bg-center md:min-h-[560px] md:flex md:items-center"
-        style={{
-          backgroundImage:
-            "linear-gradient(to right, #F3F7FF 0%, #F3F7FF 30%, rgba(243,247,255,0.4) 55%, rgba(243,247,255,0) 75%), url(/images/home/hero-visual-wide.jpg)",
-        }}
-      >
-        <div className="max-w-7xl mx-auto px-4 lg:px-6 py-14 md:py-0 w-full">
-          <div className="max-w-xl">
-            <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-white bg-primary px-3 py-1 rounded-full mb-5">
-              <Tag className="w-3.5 h-3.5" /> Marketplace teknoloji ann Ayiti
-            </span>
-            <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl font-800 tracking-tight leading-[1.15]" style={{ fontWeight: 800 }}>
-              Jwenn sa w bezwen.<br /><span className="text-primary">Vann sa w pa bezwen.</span>
-            </h1>
-            <p className="text-base md:text-lg text-muted-foreground mt-5 max-w-xl">{t("heroSubtitle")}</p>
-
-            <div className="flex flex-wrap gap-x-5 gap-y-3 mt-6">
-              {[
-                { Icon: Icons.Smartphone, label: "Telefòn" },
-                { Icon: Icons.Laptop, label: "Laptop" },
-                { Icon: Icons.Cog, label: "Pyès" },
-                { Icon: Icons.Headphones, label: "Aksèswa" },
-                { Icon: Icons.Wrench, label: "Teknisyen" },
-              ].map(({ Icon, label }) => (
-                <div key={label} className="flex flex-col items-center gap-1.5 w-14">
-                  <div className="w-11 h-11 rounded-full bg-white border border-border shadow-sm flex items-center justify-center">
-                    <Icon className="w-5 h-5 text-primary" />
-                  </div>
-                  <span className="text-xs text-muted-foreground text-center leading-tight">{label}</span>
-                </div>
-              ))}
-            </div>
-
-            <form onSubmit={submit} className="mt-8 flex flex-col sm:flex-row gap-2 max-w-2xl">
-              <div className="relative flex-1">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                <input
-                  data-testid="hero-search-input"
-                  value={q}
-                  onChange={(e) => setQ(e.target.value)}
-                  placeholder={t("searchPlaceholder")}
-                  className="w-full h-11 pl-12 pr-4 rounded-xl border border-border bg-white shadow-sm text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
-                />
-              </div>
-              <Button data-testid="hero-search-btn" type="submit" className="h-11 px-6 rounded-xl bg-primary text-sm font-semibold active:scale-95 transition-transform">
-                {t("search")}
-              </Button>
-              <Button data-testid="hero-sell-btn" type="button" onClick={() => nav("/sell")} className="h-11 px-5 rounded-xl bg-secondary text-secondary-foreground hover:bg-secondary/90 text-sm font-semibold active:scale-95 transition-transform">
-                {t("sellProduct")}
-              </Button>
-            </form>
-          </div>
-        </div>
-        {/* On mobile there's no room for text to sit over a background
-            photo and stay readable, so a plain solid-light background is
-            used instead there (bg-cover/bg-center above only matters once
-            this min-h kicks in) and a separate inline photo is shown below
-            the text — falls back to the old, simple, reliable mobile
-            treatment. */}
-        <div className="md:hidden w-full aspect-[4/3] rounded-b-2xl overflow-hidden -mt-4">
+      {/* RESTORED — back to the original structure from when the wide
+          background image was first connected: a full-height image div,
+          sibling to (not nested inside) the centered text container,
+          absolutely positioned against the section so it spans edge-to-
+          edge on the right like a true background, with a gradient fade
+          into the light left side. Content additions made afterward (the
+          category icon row, the expanded subtitle) are kept. */}
+      <section className="relative hero-grid border-b border-border overflow-hidden">
+        <div className="hidden md:block absolute inset-y-0 right-0 w-[78%]">
           <img
             src="/images/home/hero-visual-wide.jpg"
             alt="Jwenn sèvis ak pwodwi toupre w ann Ayiti"
-            className="w-full h-full object-cover object-center"
+            data-testid="home-hero-visual-wide"
+            className="absolute inset-0 w-full h-full object-cover object-center"
+          />
+          <div
+            className="absolute inset-y-0 left-0 w-1/5 pointer-events-none"
+            style={{ background: "linear-gradient(to right, #F3F7FF, transparent)" }}
           />
         </div>
+
+        {/* FIXED: max-w-7xl mx-auto centers this box, so on wide screens
+            the text (which lives inside it) drifts away from the true
+            left edge with a growing empty margin — while the image
+            already spans the section's full width and reaches the true
+            right edge. Padding-only (no max-width cap) keeps text
+            anchored a consistent distance from the left edge at any
+            screen width, matching how the image is anchored to the right. */}
+        <div className="px-4 lg:px-6 xl:pl-16 2xl:pl-24 py-14 md:py-20 relative">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-10 md:gap-8 items-center">
+            <div className="max-w-3xl">
+              <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-white bg-primary px-3 py-1 rounded-full mb-5">
+                <Tag className="w-3.5 h-3.5" /> Marketplace teknoloji ann Ayiti
+              </span>
+              <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl font-800 tracking-tight leading-[1.15]" style={{ fontWeight: 800 }}>
+                Jwenn sa w bezwen.<br /><span className="text-primary">Vann sa w pa bezwen.</span>
+              </h1>
+              <p className="text-base md:text-lg text-muted-foreground mt-5 max-w-xl">{t("heroSubtitle")}</p>
+
+              <div className="flex flex-wrap gap-x-5 gap-y-3 mt-6">
+                {[
+                  { Icon: Icons.Smartphone, label: "Telefòn" },
+                  { Icon: Icons.Laptop, label: "Laptop" },
+                  { Icon: Icons.Cog, label: "Pyès" },
+                  { Icon: Icons.Headphones, label: "Aksèswa" },
+                  { Icon: Icons.Wrench, label: "Teknisyen" },
+                ].map(({ Icon, label }) => (
+                  <div key={label} className="flex flex-col items-center gap-1.5 w-14">
+                    <div className="w-11 h-11 rounded-full bg-white border border-border shadow-sm flex items-center justify-center">
+                      <Icon className="w-5 h-5 text-primary" />
+                    </div>
+                    <span className="text-xs text-muted-foreground text-center leading-tight">{label}</span>
+                  </div>
+                ))}
+              </div>
+
+              <form onSubmit={submit} className="mt-8 flex flex-col sm:flex-row gap-2 max-w-2xl">
+                <div className="relative flex-1">
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                  <input
+                    data-testid="hero-search-input"
+                    value={q}
+                    onChange={(e) => setQ(e.target.value)}
+                    placeholder={t("searchPlaceholder")}
+                    className="w-full h-11 pl-12 pr-4 rounded-xl border border-border bg-white shadow-sm text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                  />
+                </div>
+                <Button data-testid="hero-search-btn" type="submit" className="h-11 px-6 rounded-xl bg-primary text-sm font-semibold active:scale-95 transition-transform">
+                  {t("search")}
+                </Button>
+                <Button data-testid="hero-sell-btn" type="button" onClick={() => nav("/sell")} className="h-11 px-5 rounded-xl bg-secondary text-secondary-foreground hover:bg-secondary/90 text-sm font-semibold active:scale-95 transition-transform">
+                  {t("sellProduct")}
+                </Button>
+              </form>
+            </div>
+
+            <div className="relative md:hidden w-full aspect-[4/3] sm:aspect-[16/10]">
+              <img
+                src="/images/home/hero-visual.jpg"
+                alt="Jwenn sèvis ak pwodwi toupre w ann Ayiti"
+                className="absolute inset-0 w-full h-full object-cover object-[50%_28%] rounded-2xl"
+              />
+            </div>
+            <div className="hidden md:block" />
+          </div>
+        </div>
       </section>
+
 
       <div className="max-w-7xl mx-auto px-4 lg:px-6">
         <section className="py-10">
