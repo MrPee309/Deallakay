@@ -107,7 +107,20 @@ export default function Home() {
               <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl font-800 tracking-tight leading-[1.15]" style={{ fontWeight: 800 }}>
                 Jwenn sa w bezwen.<br /><span className="text-primary">Vann sa w pa bezwen.</span>
               </h1>
-              <p className="text-base md:text-lg text-muted-foreground mt-5 max-w-xl">{t("heroSubtitle")}</p>
+              {/* FIXED: with the background photo now showing through
+                  starting around 55-75% across, the gray muted-foreground
+                  text became unreadable wherever it extended past the
+                  solid-light zone — especially once "pyès machin, pyès
+                  moto" made this wrap further right. A tighter max-width
+                  keeps it inside the safely-light area, and a darker,
+                  bolder color plus a soft text-shadow keeps it legible
+                  even where a bit of photo still shows through. */}
+              <p
+                className="text-base md:text-lg text-foreground/80 font-medium mt-5 max-w-sm md:max-w-md"
+                style={{ textShadow: "0 1px 12px rgba(243,247,255,0.9)" }}
+              >
+                {t("heroSubtitle")}
+              </p>
 
               <div className="flex flex-wrap gap-x-5 gap-y-3 mt-6">
                 {[
