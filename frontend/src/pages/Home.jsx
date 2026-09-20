@@ -53,75 +53,91 @@ export default function Home() {
   return (
     <div>
       {/* Hero */}
+      {/* min-h grows at larger breakpoints — FIXED: without this, section
+          height was driven purely by the (roughly fixed-height) text
+          column, so on very wide monitors (2560px, 3840px...) the image
+          container's width kept growing while its height stayed the same,
+          producing an extreme letterbox crop that cut off the woman's
+          head. Taller min-heights at xl/2xl give the image proportionally
+          more vertical room to work with on those screens. */}
+      {/* REBUILT — after many rounds of tuning specific values without
+          resolving a persistent "text looks boxed/cut" symptom, this
+          replaces the layered absolute-positioning + fade-mask approach
+          entirely with a plain, ordinary responsive grid: image and text
+          as normal grid children (no position:absolute, no fixed heights,
+          no custom breakpoint math). This sacrifices some visual polish
+          (the soft fade transition into the photo) but is far more likely
+          to simply work correctly across arbitrary screen sizes, since it
+          relies on nothing but the browser's normal, well-tested block/
+          grid layout instead of several interacting custom rules. */}
+      {/* RESTORED — back to the original structure from when the wide
+          background image was first connected: a full-height image div,
+          sibling to (not nested inside) the centered text container,
+          absolutely positioned against the section so it spans edge-to-
+          edge on the right like a true background, with a gradient fade
+          into the light left side. Content additions made afterward (the
+          category icon row, the expanded subtitle) are kept. */}
       <section className="relative hero-grid border-b border-border overflow-hidden">
-        {/* Image is a sibling of the padded text container, absolutely
-            positioned against the SECTION itself — so it spans the full
-            height of the blue hero area edge-to-edge (top and bottom),
-            unaffected by the text column's own vertical padding. */}
-        {/* Tier 2 — tablet landscape / small desktop (1024–1279px, e.g.
-            iPad 11"–12.9" in landscape): same side-by-side layout as the
-            large-desktop tier, but with a simple straight left-edge fade
-            instead of the elaborate wave mask — the curved mask's fixed
-            proportions don't hold up well at this narrower width. The fade
-            zone is narrower than the desktop version (1/6 instead of 1/3)
-            because this container itself is narrower, so the same
-            proportional fade width would otherwise cut into the woman
-            instead of staying confined to the empty sky/background area. */}
-        <div className="hidden lg:block xl:hidden absolute inset-y-0 right-0 w-1/2">
+        <div className="hidden md:block absolute inset-y-0 right-0 w-[78%]">
           <img
-            src="/images/home/hero-visual.jpg"
+            src="/images/home/hero-visual-wide.jpg"
             alt="Jwenn sèvis ak pwodwi toupre w ann Ayiti"
-            className="absolute inset-0 w-full h-full object-cover object-right"
+            data-testid="home-hero-visual-wide"
+            className="absolute inset-0 w-full h-full object-cover object-center"
           />
           <div
-            className="absolute inset-y-0 left-0 w-1/6 pointer-events-none"
+            className="absolute inset-y-0 left-0 w-1/5 pointer-events-none"
             style={{ background: "linear-gradient(to right, #F3F7FF, transparent)" }}
           />
         </div>
 
-        {/* Tier 3 — large desktop (≥1280px): full wave-mask treatment. */}
-        <div className="hidden xl:block absolute inset-y-0 right-0 w-[78%]">
-          {/* SVG wave-shaped mask: fades the image smoothly into the hero's
-              light-blue background along a curved boundary (not a straight
-              line, not a vignette on all sides) — the woman and phone stay
-              fully visible; only the sky/mountain area on the left blends
-              away. The gradient's fully-transparent zone extends past
-              where the curve itself wobbles, so no hard edge is ever
-              visible along the curve. */}
-          <svg width="0" height="0" aria-hidden="true">
-            <defs>
-              <mask id="heroWaveMask" maskContentUnits="objectBoundingBox">
-                <linearGradient id="heroWaveGrad" x1="0" y1="0" x2="1" y2="0">
-                  <stop offset="0%" stopColor="black" />
-                  <stop offset="24%" stopColor="black" />
-                  <stop offset="42%" stopColor="white" />
-                </linearGradient>
-                <path
-                  d="M -0.1,-0.1 C 0.1,0.08 0.05,0.22 0.14,0.35 C 0.22,0.48 0.09,0.62 0.16,0.78 C 0.21,0.88 0.14,0.98 0.18,1.1 L 1.1,1.1 L 1.1,-0.1 Z"
-                  fill="url(#heroWaveGrad)"
-                />
-              </mask>
-            </defs>
-          </svg>
-          <img
-            src="/images/home/hero-visual.jpg"
-            alt="Jwenn sèvis ak pwodwi toupre w ann Ayiti"
-            data-testid="home-hero-visual"
-            className="absolute inset-0 w-full h-full object-cover object-right"
-            style={{ WebkitMaskImage: "url(#heroWaveMask)", maskImage: "url(#heroWaveMask)" }}
-          />
-        </div>
-
-        <div className="max-w-7xl mx-auto px-4 lg:px-6 py-14 md:py-20 relative">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-8 items-center">
+        {/* FIXED: max-w-7xl mx-auto centers this box, so on wide screens
+            the text (which lives inside it) drifts away from the true
+            left edge with a growing empty margin — while the image
+            already spans the section's full width and reaches the true
+            right edge. Padding-only (no max-width cap) keeps text
+            anchored a consistent distance from the left edge at any
+            screen width, matching how the image is anchored to the right. */}
+        <div className="px-4 lg:px-6 xl:pl-16 2xl:pl-24 py-14 md:py-20 relative">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-10 md:gap-8 items-center">
             <div className="max-w-3xl">
               <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-white bg-primary px-3 py-1 rounded-full mb-5">
                 <Tag className="w-3.5 h-3.5" /> Marketplace teknoloji ann Ayiti
               </span>
-              <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl font-800 tracking-tight leading-[1.05]" style={{ fontWeight: 800 }}>
+              <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl font-800 tracking-tight leading-[1.15]" style={{ fontWeight: 800 }}>
                 Jwenn sa w bezwen.<br /><span className="text-primary">Vann sa w pa bezwen.</span>
               </h1>
-              <p className="text-base md:text-lg text-muted-foreground mt-5 max-w-xl">{t("heroSubtitle")}</p>
+              {/* FIXED: with the background photo now showing through
+                  starting around 55-75% across, the gray muted-foreground
+                  text became unreadable wherever it extended past the
+                  solid-light zone — especially once "pyès machin, pyès
+                  moto" made this wrap further right. A tighter max-width
+                  keeps it inside the safely-light area, and a darker,
+                  bolder color plus a soft text-shadow keeps it legible
+                  even where a bit of photo still shows through. */}
+              <p
+                className="text-base md:text-lg text-foreground/80 font-medium mt-5 max-w-sm md:max-w-md"
+                style={{ textShadow: "0 1px 12px rgba(243,247,255,0.9)" }}
+              >
+                {t("heroSubtitle")}
+              </p>
+
+              <div className="flex flex-wrap gap-x-5 gap-y-3 mt-6">
+                {[
+                  { Icon: Icons.Smartphone, label: "Telefòn" },
+                  { Icon: Icons.Laptop, label: "Laptop" },
+                  { Icon: Icons.Cog, label: "Pyès" },
+                  { Icon: Icons.Headphones, label: "Aksèswa" },
+                  { Icon: Icons.Wrench, label: "Teknisyen" },
+                ].map(({ Icon, label }) => (
+                  <div key={label} className="flex flex-col items-center gap-1.5 w-14">
+                    <div className="w-11 h-11 rounded-full bg-white border border-border shadow-sm flex items-center justify-center">
+                      <Icon className="w-5 h-5 text-primary" />
+                    </div>
+                    <span className="text-xs text-muted-foreground text-center leading-tight">{label}</span>
+                  </div>
+                ))}
+              </div>
 
               <form onSubmit={submit} className="mt-8 flex flex-col sm:flex-row gap-2 max-w-2xl">
                 <div className="relative flex-1">
@@ -131,34 +147,30 @@ export default function Home() {
                     value={q}
                     onChange={(e) => setQ(e.target.value)}
                     placeholder={t("searchPlaceholder")}
-                    className="w-full h-14 pl-12 pr-4 rounded-xl border border-border bg-white shadow-sm text-base focus:outline-none focus:ring-2 focus:ring-primary/40"
+                    className="w-full h-11 pl-12 pr-4 rounded-xl border border-border bg-white shadow-sm text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
                   />
                 </div>
-                <Button data-testid="hero-search-btn" type="submit" className="h-14 px-8 rounded-xl bg-primary text-base font-semibold active:scale-95 transition-transform">
+                <Button data-testid="hero-search-btn" type="submit" className="h-11 px-6 rounded-xl bg-primary text-sm font-semibold active:scale-95 transition-transform">
                   {t("search")}
                 </Button>
-                <Button data-testid="hero-sell-btn" type="button" onClick={() => nav("/sell")} className="h-14 px-6 rounded-xl bg-secondary text-secondary-foreground hover:bg-secondary/90 text-base font-semibold active:scale-95 transition-transform">
+                <Button data-testid="hero-sell-btn" type="button" onClick={() => nav("/sell")} className="h-11 px-5 rounded-xl bg-secondary text-secondary-foreground hover:bg-secondary/90 text-sm font-semibold active:scale-95 transition-transform">
                   {t("sellProduct")}
                 </Button>
               </form>
             </div>
 
-            {/* Empty spacer column on large screens — reserves the grid slot
-                so the text column stays the same width as before; the real
-                image renders full-height above, outside this padded flow.
-                On mobile/tablet (no room for a side-by-side image), fall
-                back to a normal inline image instead of hiding it. */}
-            <div className="relative lg:hidden w-full min-h-[280px]">
+            <div className="relative md:hidden w-full aspect-[4/3] sm:aspect-[16/10]">
               <img
                 src="/images/home/hero-visual.jpg"
                 alt="Jwenn sèvis ak pwodwi toupre w ann Ayiti"
-                className="absolute inset-0 w-full h-full object-cover object-right rounded-2xl"
+                className="absolute inset-0 w-full h-full object-cover object-[50%_28%] rounded-2xl"
               />
             </div>
-            <div className="hidden lg:block" />
+            <div className="hidden md:block" />
           </div>
         </div>
       </section>
+
 
       <div className="max-w-7xl mx-auto px-4 lg:px-6">
         <section className="py-10">

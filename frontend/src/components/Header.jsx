@@ -28,7 +28,7 @@ export default function Header() {
   };
 
   return (
-    <header className="sticky top-0 z-40 glass border-b border-border">
+    <header className="sticky top-0 z-40 glass border-b border-border" style={{ paddingTop: "env(safe-area-inset-top)" }}>
       <div className="max-w-7xl mx-auto px-4 lg:px-6">
         <div className="flex items-center gap-4 h-16">
           <Logo />

@@ -7,7 +7,7 @@ export const translations = {
     admin: "Admin", myAccount: "Kont mwen",
     // hero
     heroTitle: "Jwenn sa w bezwen. Vann sa w pa bezwen.",
-    heroSubtitle: "Telefòn, laptop, pyès, akseswa ak teknoloji disponib toupre ou ann Ayiti.",
+    heroSubtitle: "Telefòn, laptop, pyès, aksèswa, pyès machin, pyès moto ak teknoloji disponib toupre ou ann Ayiti.",
     searchPlaceholder: "Chèche telefòn, laptop, pyès oswa akseswa…",
     sellProduct: "Vann yon pwodwi",
     // sections
@@ -40,7 +40,7 @@ export const translations = {
     logout: "Déconnexion", home: "Accueil", favorites: "Favoris", dashboard: "Tableau Vendeur",
     admin: "Admin", myAccount: "Mon compte",
     heroTitle: "Trouvez ce qu'il vous faut. Vendez ce dont vous n'avez plus besoin.",
-    heroSubtitle: "Téléphones, ordinateurs, pièces, accessoires et technologie près de vous en Haïti.",
+    heroSubtitle: "Téléphones, ordinateurs, pièces, accessoires, pièces auto, pièces moto et technologie près de vous en Haïti.",
     searchPlaceholder: "Chercher téléphone, ordinateur, pièces ou accessoires…",
     sellProduct: "Vendre un produit",
     featured: "Produits en Vedette", recentlyAdded: "Récemment Ajoutés", phonesNearYou: "Téléphones Près de Vous",
