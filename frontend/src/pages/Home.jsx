@@ -72,7 +72,7 @@ export default function Home() {
           grid layout instead of several interacting custom rules. */}
       <section className="relative border-b border-border">
         <div className="max-w-7xl mx-auto px-4 lg:px-6 py-14 md:py-20">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-10 md:gap-12 items-center">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-10 md:gap-12 items-center md:items-stretch">
             <div>
               <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-white bg-primary px-3 py-1 rounded-full mb-5">
                 <Tag className="w-3.5 h-3.5" /> Marketplace teknoloji ann Ayiti
@@ -122,7 +122,13 @@ export default function Home() {
             {/* Plain, ordinary <img> in normal flow — no absolute
                 positioning, no fade mask, no custom height math. Simply
                 sits in its own grid cell like any other image. */}
-            <div className="w-full aspect-[4/3] md:aspect-[16/10] rounded-2xl overflow-hidden">
+            {/* On mobile, a fixed aspect-ratio (no room to stretch, single
+                column). On md+, the grid now stretches both columns to the
+                same height, so removing the aspect-ratio there and using
+                h-full lets the image fill however tall the text column
+                naturally ends up being — no more looking short/small next
+                to a tall text column. */}
+            <div className="w-full aspect-[4/3] md:aspect-auto md:h-full rounded-2xl overflow-hidden">
               <img
                 src="/images/home/hero-visual-wide.jpg"
                 alt="Jwenn sèvis ak pwodwi toupre w ann Ayiti"
