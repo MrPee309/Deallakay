@@ -105,7 +105,15 @@ async def _notify_matching_alerts(product: dict):
 
 @router.post("/products")
 async def create_product(data: ProductIn, user: dict = Depends(get_current_user)):
-    if not user.get("is_seller"):
+    # Kafou Shop staff (role="staff" with the kafou_shop_manage permission,
+    # or a full admin) create products for the store the same way a seller
+    # creates their own — reusing this endpoint rather than a duplicate one
+    # in kafou_shop.py. Staff accounts never carry is_seller (see shared.py's
+    # require_staff docstring), so this is a separate, explicit check.
+    is_kafou_staff = user.get("role") == "admin" or (
+        user.get("role") == "staff" and "kafou_shop_manage" in (user.get("permissions") or [])
+    )
+    if not user.get("is_seller") and not is_kafou_staff:
         raise HTTPException(status_code=403, detail="Ou dwe yon vandè pou vann.")
     if data.status not in ("active", "draft"):
         raise HTTPException(status_code=400, detail="Estati pa valab.")
@@ -124,6 +132,11 @@ async def create_product(data: ProductIn, user: dict = Depends(get_current_user)
         "slug": slug,
         "seller_id": user["id"],
         "seller_username": user["username"],
+        # Set only for a Kafou Shop staff-created listing — a normal
+        # seller's products simply don't have this field. Keeps Kafou
+        # Shop products identifiable by a real id, never a text comparison
+        # of the store name (spec §4).
+        "store_id": "kafou-shop" if is_kafou_staff else None,
         "category": data.category,
         "subcategory": data.subcategory,
         "title": data.title.strip(),
