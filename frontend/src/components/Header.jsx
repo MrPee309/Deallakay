@@ -158,6 +158,12 @@ export default function Header() {
                   <Link to="/suppliers" onClick={() => setMenuOpen(false)} data-testid="mobile-nav-suppliers" className="text-sm font-medium px-3 py-2.5 rounded-lg hover:bg-muted flex items-center gap-2 text-muted-foreground">
                     <Icons.Building2 className="w-4 h-4" /> Founisè
                   </Link>
+                  {/* New — Kafou Shop existed as working pages/routes/API,
+                      but had no navigation entry point anywhere, so it was
+                      unreachable in practice despite being functional. */}
+                  <Link to="/kafou-shop" onClick={() => setMenuOpen(false)} data-testid="mobile-nav-kafou-shop" className="text-sm font-medium px-3 py-2.5 rounded-lg hover:bg-muted flex items-center gap-2 text-muted-foreground">
+                    <Icons.Store className="w-4 h-4" /> Kafou Shop
+                  </Link>
                 </div>
                 {!(user && user.id) && (
                   <div className="mt-auto pt-4 border-t border-border flex flex-col gap-2">
@@ -191,6 +197,11 @@ export default function Header() {
           </Link>
           <Link to="/suppliers" data-testid="nav-suppliers" className="text-sm font-medium px-3 py-1.5 rounded-full hover:bg-muted whitespace-nowrap flex items-center gap-1.5 text-muted-foreground hover:text-foreground">
             <Icons.Building2 className="w-4 h-4" /> Founisè
+          </Link>
+          {/* New — same root cause as the mobile menu above: the page and
+              route already worked, there was just no link to it anywhere. */}
+          <Link to="/kafou-shop" data-testid="nav-kafou-shop" className="text-sm font-medium px-3 py-1.5 rounded-full hover:bg-muted whitespace-nowrap flex items-center gap-1.5 text-muted-foreground hover:text-foreground">
+            <Icons.Store className="w-4 h-4" /> Kafou Shop
           </Link>
         </div>
       </div>
