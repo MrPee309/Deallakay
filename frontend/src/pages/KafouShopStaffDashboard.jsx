@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from "react";
+import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import api, { apiError } from "@/lib/api";
 import { formatPrice, timeAgo } from "@/lib/format";
@@ -104,7 +105,7 @@ export default function KafouShopStaffDashboard() {
             return (
               <div key={o.id} className="border rounded-xl p-4">
                 <div className="flex items-center justify-between">
-                  <span className="font-mono text-sm font-medium">{o.reference}</span>
+                  <Link to={`/kafou-shop/orders/${o.id}`} className="font-mono text-sm font-medium hover:underline">{o.reference}</Link>
                   <span className="text-xs text-muted-foreground">{timeAgo(o.created_at)}</span>
                 </div>
                 <p className="text-sm mt-1">{o.customer_name} · {o.customer_phone}</p>

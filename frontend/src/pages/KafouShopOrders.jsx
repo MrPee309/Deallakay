@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { ArrowLeft, ChevronRight } from "lucide-react";
 import api from "@/lib/api";
 import { formatPrice, timeAgo } from "@/lib/format";
 import { FullLoader } from "@/components/Layout";
@@ -17,6 +19,7 @@ const STATUS_COLORS = {
 };
 
 export default function KafouShopOrders() {
+  const nav = useNavigate();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -28,13 +31,16 @@ export default function KafouShopOrders() {
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-8">
+      <button onClick={() => nav("/kafou-shop")} className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-4">
+        <ArrowLeft className="w-4 h-4" /> Tounen nan Kafou Shop
+      </button>
       <h1 className="text-xl font-bold mb-6">Kòmand Kafou Shop Mwen Yo</h1>
       {orders.length === 0 ? (
         <p className="text-center text-muted-foreground py-12">Ou poko gen okenn kòmand.</p>
       ) : (
         <div className="space-y-4">
           {orders.map((o) => (
-            <div key={o.id} className="border rounded-xl p-4">
+            <Link to={`/kafou-shop/orders/${o.id}`} key={o.id} className="block border rounded-xl p-4 hover:shadow-md transition-shadow">
               <div className="flex items-center justify-between">
                 <span className="font-mono text-sm font-medium">{o.reference}</span>
                 <span className={`text-xs px-2 py-1 rounded-full ${STATUS_COLORS[o.status]}`}>
@@ -54,10 +60,13 @@ export default function KafouShopOrders() {
                 <span>Total</span>
                 <span>{formatPrice(o.subtotal)}</span>
               </div>
-              <p className="text-xs text-muted-foreground mt-2">
-                {o.fulfillment_method === "pickup" ? "Vin Pran l" : `Livrezon: ${o.delivery_address}, ${o.delivery_city}`}
-              </p>
-            </div>
+              <div className="flex items-center justify-between mt-2">
+                <p className="text-xs text-muted-foreground">
+                  {o.fulfillment_method === "pickup" ? "Vin Pran l" : `Livrezon: ${o.delivery_address}, ${o.delivery_city}`}
+                </p>
+                <ChevronRight className="w-4 h-4 text-muted-foreground" />
+              </div>
+            </Link>
           ))}
         </div>
       )}
