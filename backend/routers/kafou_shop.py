@@ -62,6 +62,8 @@ class KafouStoreIn(BaseModel):
     pickup_location: Optional[str] = None
     pickup_department: Optional[str] = None
     pickup_city: Optional[str] = None
+    business_hours: Optional[str] = None
+    whatsapp_number: Optional[str] = None  # shown only if actually set — see spec: never invent a contact method
     status: str = "active"  # active | temporarily_unavailable | suspended
 
 
@@ -108,13 +110,53 @@ async def update_kafou_store(data: KafouStoreIn, user: dict = Depends(get_admin)
 # check, rather than duplicating that logic here) ─────────────────────────
 
 @router.get("/kafou-shop/products")
-async def list_kafou_products(available_only: bool = False):
-    """Public catalog listing for the store page."""
+async def list_kafou_products(
+    available_only: bool = False,
+    q: Optional[str] = None,
+    category: Optional[str] = None,
+    sort: str = "newest",
+):
+    """
+    Public catalog listing for the store page. `q` searches title/brand/
+    model (brand and model live in the existing free-form `specs` dict —
+    see products.py's ProductIn — so no new product fields were needed).
+    `sort` is restricted to values the actual stored data supports (spec:
+    "only provide sorting options that can be supported by the actual
+    data") — price or recency, nothing fabricated like a popularity score
+    that doesn't exist yet.
+    """
     query: Dict[str, Any] = {"store_id": KAFOU_SHOP_ID, "status": "active"}
     if available_only:
         query["quantity"] = {"$gt": 0}
-    cursor = db.products.find(query, NO_ID).sort("created_at", -1)
+    if category:
+        query["category"] = category
+    if q:
+        query["$or"] = [
+            {"title": {"$regex": q, "$options": "i"}},
+            {"specs.brand": {"$regex": q, "$options": "i"}},
+            {"specs.model": {"$regex": q, "$options": "i"}},
+        ]
+    sort_map = {
+        "newest": [("created_at", -1)],
+        "price_asc": [("price", 1)],
+        "price_desc": [("price", -1)],
+    }
+    cursor = db.products.find(query, NO_ID).sort(sort_map.get(sort, sort_map["newest"]))
     return [p async for p in cursor]
+
+
+@router.get("/kafou-shop/categories")
+async def list_kafou_categories():
+    """Real, database-derived category list (with product counts) for the
+    sidebar — not a hardcoded list that could drift from what's actually
+    in stock."""
+    pipeline = [
+        {"$match": {"store_id": KAFOU_SHOP_ID, "status": "active"}},
+        {"$group": {"_id": "$category", "count": {"$sum": 1}}},
+        {"$sort": {"_id": 1}},
+    ]
+    results = [doc async for doc in db.products.aggregate(pipeline)]
+    return [{"category": r["_id"], "count": r["count"]} for r in results if r["_id"]]
 
 
 # ───────────────────────── Orders ─────────────────────────
