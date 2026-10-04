@@ -16,6 +16,11 @@ import ResetPassword from "@/pages/ResetPassword";
 import AddProduct from "@/pages/AddProduct";import SellerDashboard from "@/pages/SellerDashboard";
 import SellerProfile from "@/pages/SellerProfile";
 import Technicians from "@/pages/Technicians";
+import KafouShop from "@/pages/KafouShop";
+import KafouShopProduct from "@/pages/KafouShopProduct";
+import KafouShopOrders from "@/pages/KafouShopOrders";
+import KafouShopOrderDetail from "@/pages/KafouShopOrderDetail";
+import KafouShopStaffDashboard from "@/pages/KafouShopStaffDashboard";
 import TechnicianProfile from "@/pages/TechnicianProfile";
 import BecomeTechnicianPage from "@/pages/BecomeTechnicianPage";
 import BecomeBusinessPage from "@/pages/BecomeBusinessPage";
@@ -62,6 +67,11 @@ function App() {
               <Route path="/requests/:id" element={<ProtectedRoute><RequestDetail /></ProtectedRoute>} />
               <Route path="/post-request" element={<ProtectedRoute><PostRequest /></ProtectedRoute>} />
               <Route path="/alerts" element={<ProtectedRoute><MyAlerts /></ProtectedRoute>} />
+              <Route path="/kafou-shop" element={<KafouShop />} />
+              <Route path="/kafou-shop/product/:slug" element={<KafouShopProduct />} />
+              <Route path="/kafou-shop/orders" element={<ProtectedRoute><KafouShopOrders /></ProtectedRoute>} />
+              <Route path="/kafou-shop/orders/:id" element={<ProtectedRoute><KafouShopOrderDetail /></ProtectedRoute>} />
+              <Route path="/kafou-shop/staff" element={<ProtectedRoute><KafouShopStaffDashboard /></ProtectedRoute>} />
               <Route path="/suppliers" element={<Suppliers />} />
               <Route path="/suppliers/:id" element={<SupplierProfile />} />
               <Route path="/become-supplier" element={<ProtectedRoute><BecomeSupplier /></ProtectedRoute>} />
