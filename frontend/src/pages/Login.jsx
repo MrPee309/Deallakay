@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { Loader2, Eye, EyeOff } from "lucide-react";
 import { apiError } from "@/lib/api";
 import { useApp } from "@/contexts/AppContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -18,6 +18,7 @@ export default function Login() {
   const loc = useLocation();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const submit = async (e) => {
@@ -50,7 +51,25 @@ export default function Login() {
               <Label>{t("password")}</Label>
               <Link to="/forgot-password" className="text-xs text-primary hover:underline">{t("forgotPassword")}</Link>
             </div>
-            <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required data-testid="login-password" className="mt-1.5 h-11" />
+            <div className="relative mt-1.5">
+              <Input
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                data-testid="login-password"
+                className="h-11 pr-10"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                data-testid="login-toggle-password-visibility"
+                tabIndex={-1}
+              >
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
           </div>
           <Button type="submit" disabled={loading} data-testid="login-submit" className="w-full h-11 bg-primary font-semibold">
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : t("signIn")}
