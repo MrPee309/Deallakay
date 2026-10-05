@@ -326,6 +326,33 @@ class AvatarIn(BaseModel):
     avatar: str  # base64 data URL — validated the same way product images are
 
 
+class ChangePasswordIn(BaseModel):
+    current_password: str
+    new_password: str
+
+
+@router.put("/me/change-password")
+async def change_password(data: ChangePasswordIn, user: dict = Depends(get_current_user)):
+    """
+    Lets an already-logged-in user (e.g. an admin on the shared default
+    account) set a new password themselves — previously the only path was
+    /forgot-password, meant for someone who can't log in at all.
+    """
+    if not auth_lib.verify_password(data.current_password, user["password_hash"]):
+        raise HTTPException(status_code=400, detail="Ansyen modpas la pa kòrèk.")
+    if len(data.new_password) < 8:
+        raise HTTPException(status_code=400, detail="Nouvo modpas la dwe gen omwen 8 karaktè.")
+    if data.new_password == data.current_password:
+        raise HTTPException(status_code=400, detail="Nouvo modpas la dwe diferan de ansyen an.")
+    # Same pattern as reset-password: bump token_version so any other
+    # already-issued session/token is invalidated by the password change.
+    await db.users.update_one(
+        {"id": user["id"]},
+        {"$set": {"password_hash": auth_lib.hash_password(data.new_password)}, "$inc": {"token_version": 1}},
+    )
+    return {"message": "Modpas ou chanje."}
+
+
 @router.put("/me/avatar")
 async def update_my_avatar(data: AvatarIn, user: dict = Depends(get_current_user)):
     """Lets ANY authenticated user set their own profile photo — previously
