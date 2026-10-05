@@ -53,7 +53,14 @@ export default function AddProduct() {
   }, [editing, id, categories, nav]);
 
   if (user === null) return <FullLoader />;
-  if (user && !user.is_seller) {
+  // Kafou Shop staff (role="admin", or role="staff" with the
+  // kafou_shop_manage permission) create products the same way a seller
+  // does — the backend's /products endpoint already allows this (see
+  // products.py), but this frontend gate was only checking is_seller,
+  // so an admin trying to add a Kafou Shop product was shown the
+  // "become a seller" onboarding form instead of the actual form.
+  const isKafouStaff = user?.role === "admin" || (user?.role === "staff" && (user?.permissions || []).includes("kafou_shop_manage"));
+  if (user && !user.is_seller && !isKafouStaff) {
     return (
       <div className="max-w-7xl mx-auto px-4 py-10">
         <BecomeSeller onDone={() => nav("/sell")} />
