@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -93,6 +94,7 @@ export default function AdminDashboard() {
           { value: "categories", label: "Kategori", show: isFullAdmin, content: <AdminCategories /> },
           { value: "settings", label: "Paramèt", show: isFullAdmin, content: <AdminSettings /> },
           { value: "staff", label: "Anplwaye", show: isFullAdmin, content: <AdminStaff /> },
+          { value: "kafou-shop", label: "Kafou Shop", show: can("kafou_shop_manage") || isFullAdmin, content: <AdminKafouShop /> },
         ].filter((t) => t.show);
         return (
           <Tabs defaultValue={TABS[0]?.value}>
@@ -375,7 +377,123 @@ const PERMISSION_LABELS = {
   approve_technicians: "Apwouve Teknisyen",
   approve_suppliers: "Apwouve Founisè",
   handle_reports: "Jere Rapò",
+  kafou_shop_manage: "Jere Kafou Shop",
 };
+
+const KAFOU_SHOP_EMPTY_FORM = {
+  name: "Kafou Shop",
+  logo: "",
+  description: "",
+  contact_phone: "",
+  contact_email: "",
+  pickup_location: "",
+  pickup_department: "",
+  pickup_city: "",
+  business_hours: "",
+  whatsapp_number: "",
+  status: "active",
+};
+
+// Submitted through the admin's own already-logged-in session (the axios
+// client attaches the token automatically) — avoids the manual token
+// copy/paste that kept getting garbled when done by hand through a raw
+// curl command on a mobile terminal app.
+function AdminKafouShop() {
+  const [form, setForm] = useState(KAFOU_SHOP_EMPTY_FORM);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [exists, setExists] = useState(false);
+
+  useEffect(() => {
+    api
+      .get("/kafou-shop/store")
+      .then(({ data }) => {
+        setForm({ ...KAFOU_SHOP_EMPTY_FORM, ...data });
+        setExists(true);
+      })
+      .catch(() => undefined) // 404 just means it's not created yet
+      .finally(() => setLoading(false));
+  }, []);
+
+  const set = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      await api.put("/kafou-shop/store", form);
+      toast.success(exists ? "Pwofil Kafou Shop mizajou." : "Pwofil Kafou Shop kreye!");
+      setExists(true);
+    } catch (e) {
+      toast.error(apiError(e));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) return <p className="text-muted-foreground">N ap chaje...</p>;
+
+  return (
+    <div className="max-w-xl space-y-4">
+      {!exists && (
+        <p className="text-sm bg-amber-50 text-amber-800 border border-amber-200 rounded-lg p-3">
+          Pwofil Kafou Shop la poko kreye — ranpli fòm sa a epi klike "Anrejistre" pou kreye l.
+        </p>
+      )}
+      <div>
+        <label className="text-sm font-medium mb-1 block">Non Magazen</label>
+        <Input value={form.name} onChange={set("name")} />
+      </div>
+      <div>
+        <label className="text-sm font-medium mb-1 block">Deskripsyon</label>
+        <Textarea value={form.description} onChange={set("description")} />
+      </div>
+      <div>
+        <label className="text-sm font-medium mb-1 block">Telefòn Kontak</label>
+        <Input value={form.contact_phone} onChange={set("contact_phone")} placeholder="+509 ..." />
+      </div>
+      <div>
+        <label className="text-sm font-medium mb-1 block">Imèl Kontak (opsyonèl)</label>
+        <Input value={form.contact_email} onChange={set("contact_email")} />
+      </div>
+      <div>
+        <label className="text-sm font-medium mb-1 block">Kote Pou Vin Pran Kòmand (adrès)</label>
+        <Input value={form.pickup_location} onChange={set("pickup_location")} placeholder="Delmas 33, Pòtoprens" />
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="text-sm font-medium mb-1 block">Depatman</label>
+          <Input value={form.pickup_department} onChange={set("pickup_department")} />
+        </div>
+        <div>
+          <label className="text-sm font-medium mb-1 block">Vil</label>
+          <Input value={form.pickup_city} onChange={set("pickup_city")} />
+        </div>
+      </div>
+      <div>
+        <label className="text-sm font-medium mb-1 block">Orè Biznis (opsyonèl)</label>
+        <Input value={form.business_hours} onChange={set("business_hours")} placeholder="Lendi - Samedi: 8AM - 6PM" />
+      </div>
+      <div>
+        <label className="text-sm font-medium mb-1 block">Nimewo WhatsApp (opsyonèl — kite vid si pa gen)</label>
+        <Input value={form.whatsapp_number} onChange={set("whatsapp_number")} placeholder="50912345678" />
+      </div>
+      <div>
+        <label className="text-sm font-medium mb-1 block">Estati Magazen</label>
+        <Select value={form.status} onValueChange={(v) => setForm((f) => ({ ...f, status: v }))}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="active">Aktif</SelectItem>
+            <SelectItem value="temporarily_unavailable">Pa Disponib Tanporèman</SelectItem>
+            <SelectItem value="suspended">Sispann</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <Button onClick={save} disabled={saving} className="w-full">
+        {saving ? "N ap anrejistre..." : exists ? "Mizajou Pwofil la" : "Kreye Pwofil la"}
+      </Button>
+    </div>
+  );
+}
 
 function AdminStaff() {
   const [available, setAvailable] = useState([]);
