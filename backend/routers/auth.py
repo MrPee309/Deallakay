@@ -22,7 +22,7 @@ import auth as auth_lib
 import email_service
 import security
 from seed_data import DEPARTMENTS
-from shared import db, now_iso, get_current_user, public_user, _heal_admin_staff_roles
+from shared import db, NO_ID, now_iso, get_current_user, public_user, _heal_admin_staff_roles
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -338,7 +338,14 @@ async def change_password(data: ChangePasswordIn, user: dict = Depends(get_curre
     account) set a new password themselves — previously the only path was
     /forgot-password, meant for someone who can't log in at all.
     """
-    if not auth_lib.verify_password(data.current_password, user["password_hash"]):
+    # FIXED: get_current_user strips password_hash from the dict it returns
+    # (shared.py, for safety everywhere else it's used) — reading
+    # user["password_hash"] here raised an unhandled KeyError (500 Internal
+    # Server Error) every time, before the real password check ever ran.
+    # Re-fetching the full record (this one place that actually needs the
+    # hash) fixes it.
+    full_user = await db.users.find_one({"id": user["id"]}, NO_ID)
+    if not auth_lib.verify_password(data.current_password, full_user["password_hash"]):
         raise HTTPException(status_code=400, detail="Ansyen modpas la pa kòrèk.")
     if len(data.new_password) < 8:
         raise HTTPException(status_code=400, detail="Nouvo modpas la dwe gen omwen 8 karaktè.")
