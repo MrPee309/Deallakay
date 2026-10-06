@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Search, MessageCircle, Bell, Menu, Plus, ChevronDown, LogOut, LayoutDashboard, Heart, User, Shield, MapPin } from "lucide-react";
+import { Search, MessageCircle, Bell, Menu, Plus, ChevronDown, LogOut, LayoutDashboard, Heart, User, Shield, MapPin, ShoppingCart } from "lucide-react";
+import { useCart } from "@/contexts/CartContext";
 import * as Icons from "lucide-react";
 import Logo from "./Logo";
 import { useApp } from "@/contexts/AppContext";
@@ -85,6 +86,11 @@ export default function Header() {
                 </Button>
               </Link>
             )}
+
+            {/* New — site-wide cart, visible regardless of login state
+                (it's stored in the browser, not tied to an account) so a
+                customer can start adding things before signing in. */}
+            <HeaderCartIcon />
 
             {user && user.id ? (
               <>
@@ -212,5 +218,15 @@ export default function Header() {
         </div>
       </div>
     </header>
+  );
+}
+
+function HeaderCartIcon() {
+  const { totalCount } = useCart();
+  return (
+    <Link to="/cart" data-testid="header-cart-btn" className="relative p-2 rounded-full hover:bg-muted">
+      <ShoppingCart className="w-5 h-5" />
+      {totalCount > 0 && <span className="absolute top-1 right-1 bg-destructive text-white text-[9px] rounded-full min-w-[16px] h-4 px-1 flex items-center justify-center">{totalCount > 9 ? "9+" : totalCount}</span>}
+    </Link>
   );
 }
