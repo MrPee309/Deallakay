@@ -7,6 +7,7 @@ import { FullLoader } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useCart } from "@/contexts/CartContext";
 
 // Debounced search — avoids a request on every keystroke (spec §4).
 function useDebounced(value, delay = 350) {
@@ -146,6 +147,7 @@ export default function KafouShop() {
                 <SelectItem value="price_desc">Pri: Pi Wo a Piba</SelectItem>
               </SelectContent>
             </Select>
+            <CartLinkButton />
           </div>
 
           {/* Mobile category chips — the sidebar is desktop-only (lg:), so
@@ -261,8 +263,21 @@ export default function KafouShop() {
 }
 
 function ProductCard({ product }) {
+  const { addItem } = useCart();
   const [added, setAdded] = useState(false);
   const outOfStock = product.quantity <= 0;
+
+  const handleAddToCart = (e) => {
+    e.preventDefault(); // the whole card area links to the detail page — stop that navigation for this specific button
+    addItem({
+      productId: product.id,
+      title: product.title,
+      price: product.price,
+      image: product.images?.[0] || null,
+    });
+    setAdded(true);
+    setTimeout(() => setAdded(false), 1500);
+  };
 
   return (
     <div className="border rounded-xl overflow-hidden flex flex-col">
@@ -283,12 +298,31 @@ function ProductCard({ product }) {
           <span className={`w-1.5 h-1.5 rounded-full ${outOfStock ? "bg-destructive" : "bg-green-600"}`} />
           {outOfStock ? "San stòk" : "Nan stòk"}
         </p>
-        <Link to={`/kafou-shop/product/${product.slug}`} className="mt-auto pt-2">
-          <Button size="sm" className="w-full" disabled={outOfStock}>
-            <ShoppingCart className="w-3.5 h-3.5 mr-1.5" /> Kòmande
-          </Button>
-        </Link>
+        {/* Changed from a direct single-item order button to "add to
+            cart" — the card is now the entry point for building up a
+            multi-item cart (see CartContext/KafouShopCart); the single-
+            item direct-order flow on the product detail page itself is
+            still there for someone who just wants one thing quickly. */}
+        <Button size="sm" className="w-full mt-auto" disabled={outOfStock} onClick={handleAddToCart}>
+          <ShoppingCart className="w-3.5 h-3.5 mr-1.5" /> {added ? "Ajoute!" : "Ajoute nan Panye"}
+        </Button>
       </div>
     </div>
+  );
+}
+
+function CartLinkButton() {
+  const { totalCount } = useCart();
+  return (
+    <Link to="/kafou-shop/cart">
+      <Button variant="outline" className="relative w-full sm:w-auto">
+        <ShoppingCart className="w-4 h-4 mr-2" /> Panye
+        {totalCount > 0 && (
+          <span className="absolute -top-2 -right-2 bg-primary text-primary-foreground text-xs rounded-full w-5 h-5 flex items-center justify-center">
+            {totalCount > 9 ? "9+" : totalCount}
+          </span>
+        )}
+      </Button>
+    </Link>
   );
 }
