@@ -75,6 +75,7 @@ function App() {
               <Route path="/kafou-shop/orders" element={<ProtectedRoute><KafouShopOrders /></ProtectedRoute>} />
               <Route path="/kafou-shop/orders/:id" element={<ProtectedRoute><KafouShopOrderDetail /></ProtectedRoute>} />
               <Route path="/kafou-shop/cart" element={<KafouShopCart />} />
+              <Route path="/cart" element={<KafouShopCart />} />
               <Route path="/kafou-shop/staff" element={<ProtectedRoute><KafouShopStaffDashboard /></ProtectedRoute>} />
               <Route path="/suppliers" element={<Suppliers />} />
               <Route path="/suppliers/:id" element={<SupplierProfile />} />
