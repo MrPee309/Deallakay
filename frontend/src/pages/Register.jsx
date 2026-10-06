@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { Loader2, MailCheck, ExternalLink } from "lucide-react";
+import { Loader2, MailCheck, ExternalLink, Eye, EyeOff } from "lucide-react";
 import api, { apiError } from "@/lib/api";
 import { useApp } from "@/contexts/AppContext";
 import Logo from "@/components/Logo";
@@ -157,10 +157,34 @@ export default function Register() {
 }
 
 function Field({ label, v, onC, type = "text", testid, required, placeholder }) {
+  const [showPassword, setShowPassword] = useState(false);
+  const isPassword = type === "password";
   return (
     <div>
       <Label>{label}{required && <span className="text-red-500 ml-0.5">*</span>}</Label>
-      <Input type={type} value={v} onChange={(e) => onC(e.target.value)} required={required} data-testid={testid} placeholder={placeholder} className="mt-1.5 h-11" autoCapitalize={type === "email" ? "none" : undefined} />
+      <div className={isPassword ? "relative mt-1.5" : undefined}>
+        <Input
+          type={isPassword && showPassword ? "text" : type}
+          value={v}
+          onChange={(e) => onC(e.target.value)}
+          required={required}
+          data-testid={testid}
+          placeholder={placeholder}
+          className={isPassword ? "h-11 pr-10" : "mt-1.5 h-11"}
+          autoCapitalize={type === "email" ? "none" : undefined}
+        />
+        {isPassword && (
+          <button
+            type="button"
+            onClick={() => setShowPassword((s) => !s)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+            data-testid={`${testid}-toggle-visibility`}
+            tabIndex={-1}
+          >
+            {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+          </button>
+        )}
+      </div>
     </div>
   );
 }

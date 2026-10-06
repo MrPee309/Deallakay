@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { Store, LogOut, ShieldCheck, User as UserIcon, Camera, Loader2, ShieldOff } from "lucide-react";
+import { Store, LogOut, ShieldCheck, User as UserIcon, Camera, Loader2, ShieldOff, Eye, EyeOff } from "lucide-react";
 import api, { apiError } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { compressImage } from "@/lib/format";
@@ -18,6 +18,7 @@ export default function Profile() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [changingPassword, setChangingPassword] = useState(false);
+  const [showPasswords, setShowPasswords] = useState(false);
 
   if (!user) return null;
 
@@ -104,9 +105,15 @@ export default function Profile() {
           <Button variant="outline" onClick={() => setShowPasswordForm(true)} className="w-full h-11" data-testid="profile-show-change-password">Chanje Modpas</Button>
         ) : (
           <div className="border rounded-xl p-4 space-y-3">
-            <Input type="password" placeholder="Ansyen modpas" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} data-testid="change-password-current" />
-            <Input type="password" placeholder="Nouvo modpas (8+ karaktè)" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} data-testid="change-password-new" />
-            <Input type="password" placeholder="Konfime nouvo modpas" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} data-testid="change-password-confirm" />
+            <div className="flex items-center justify-end">
+              <button type="button" onClick={() => setShowPasswords((s) => !s)} className="flex items-center gap-1.5 text-xs text-muted-foreground" data-testid="change-password-toggle-visibility">
+                {showPasswords ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                {showPasswords ? "Kache modpas yo" : "Montre modpas yo"}
+              </button>
+            </div>
+            <Input type={showPasswords ? "text" : "password"} placeholder="Ansyen modpas" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} data-testid="change-password-current" />
+            <Input type={showPasswords ? "text" : "password"} placeholder="Nouvo modpas (8+ karaktè)" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} data-testid="change-password-new" />
+            <Input type={showPasswords ? "text" : "password"} placeholder="Konfime nouvo modpas" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} data-testid="change-password-confirm" />
             <div className="flex gap-2">
               <Button variant="ghost" className="flex-1" onClick={() => { setShowPasswordForm(false); setCurrentPassword(""); setNewPassword(""); setConfirmPassword(""); }}>Anile</Button>
               <Button
