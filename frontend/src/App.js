@@ -2,6 +2,7 @@ import "@/App.css";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AppProvider } from "@/contexts/AppContext";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { CartProvider } from "@/contexts/CartContext";
 import { Toaster } from "@/components/ui/sonner";
 import { Layout, ProtectedRoute } from "@/components/Layout";
 
@@ -20,6 +21,7 @@ import KafouShop from "@/pages/KafouShop";
 import KafouShopProduct from "@/pages/KafouShopProduct";
 import KafouShopOrders from "@/pages/KafouShopOrders";
 import KafouShopOrderDetail from "@/pages/KafouShopOrderDetail";
+import KafouShopCart from "@/pages/KafouShopCart";
 import KafouShopStaffDashboard from "@/pages/KafouShopStaffDashboard";
 import TechnicianProfile from "@/pages/TechnicianProfile";
 import BecomeTechnicianPage from "@/pages/BecomeTechnicianPage";
@@ -43,6 +45,7 @@ function App() {
   return (
     <AppProvider>
       <AuthProvider>
+        <CartProvider>
         <BrowserRouter>
           <Toaster position="top-center" richColors />
           <Routes>
@@ -71,6 +74,7 @@ function App() {
               <Route path="/kafou-shop/product/:slug" element={<KafouShopProduct />} />
               <Route path="/kafou-shop/orders" element={<ProtectedRoute><KafouShopOrders /></ProtectedRoute>} />
               <Route path="/kafou-shop/orders/:id" element={<ProtectedRoute><KafouShopOrderDetail /></ProtectedRoute>} />
+              <Route path="/kafou-shop/cart" element={<KafouShopCart />} />
               <Route path="/kafou-shop/staff" element={<ProtectedRoute><KafouShopStaffDashboard /></ProtectedRoute>} />
               <Route path="/suppliers" element={<Suppliers />} />
               <Route path="/suppliers/:id" element={<SupplierProfile />} />
@@ -89,6 +93,7 @@ function App() {
             </Route>
           </Routes>
         </BrowserRouter>
+        </CartProvider>
       </AuthProvider>
     </AppProvider>
   );
