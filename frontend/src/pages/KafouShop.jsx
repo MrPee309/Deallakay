@@ -274,6 +274,9 @@ function ProductCard({ product }) {
       title: product.title,
       price: product.price,
       image: product.images?.[0] || null,
+      sellerId: null,
+      sellerName: "Kafou Shop",
+      storeId: "kafou-shop",
     });
     setAdded(true);
     setTimeout(() => setAdded(false), 1500);

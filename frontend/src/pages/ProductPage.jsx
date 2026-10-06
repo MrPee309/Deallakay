@@ -5,6 +5,8 @@ import { toast } from "sonner";
 import api, { apiError } from "@/lib/api";
 import { useApp } from "@/contexts/AppContext";
 import { useAuth } from "@/contexts/AuthContext";
+import { useCart } from "@/contexts/CartContext";
+import { ShoppingCart } from "lucide-react";
 import { formatPrice, timeAgo } from "@/lib/format";
 import { SellerBadges } from "@/components/Badges";
 import { Button } from "@/components/ui/button";
@@ -63,6 +65,22 @@ export default function ProductPage() {
       setFav(data.favorited);
       toast.success(data.favorited ? "Ajoute nan favori" : "Retire nan favori");
     } catch (e) { toast.error(apiError(e)); }
+  };
+
+  const { addItem } = useCart();
+  const [addedToCart, setAddedToCart] = useState(false);
+  const handleAddToCart = () => {
+    addItem({
+      productId: p.id,
+      title: p.title,
+      price: p.price,
+      image: p.images?.[0] || null,
+      sellerId: s?.id || null,
+      sellerName: s ? (s.store_name || s.full_name) : null,
+      storeId: p.store_id || null, // "kafou-shop" for Kafou Shop products, null for everyone else
+    });
+    setAddedToCart(true);
+    setTimeout(() => setAddedToCart(false), 1500);
   };
 
   const contactSeller = async () => {
@@ -169,6 +187,15 @@ export default function ProductPage() {
 
               {p.status !== "sold" && (
                 <div className="flex flex-col gap-2 mt-4">
+                  {/* New — a site-wide cart, not specific to any one
+                      seller: lets a customer collect products from
+                      several different sellers before reaching out, same
+                      idea as adding items to a cart on any marketplace,
+                      just without a payment step this site doesn't have
+                      yet (checkout contacts each seller directly). */}
+                  <Button onClick={handleAddToCart} variant="outline" data-testid="add-to-cart-btn" className="w-full h-11 font-semibold mb-2">
+                    <ShoppingCart className="w-4 h-4 mr-2" />{addedToCart ? "Ajoute nan Panye!" : "Ajoute nan Panye"}
+                  </Button>
                   <Button onClick={contactSeller} data-testid="contact-seller-btn" className="w-full h-11 bg-primary font-semibold"><MessageCircle className="w-4 h-4 mr-2" />{t("sendMessage")}</Button>
                   {s?.whatsapp_enabled && s?.whatsapp_number && (
                     <a href={whatsappLink()} target="_blank" rel="noreferrer" data-testid="whatsapp-btn">
