@@ -13,6 +13,12 @@ import { Sheet, SheetTrigger, SheetContent } from "@/components/ui/sheet";
 export default function Header() {
   const { t, categories, locations, lang, changeLang } = useApp();
   const { user, logout, notifCount } = useAuth();
+  // The "Vann" button is hidden for admin/staff accounts (they aren't
+  // regular marketplace sellers) — but Kafou Shop products are created
+  // through this same /sell flow by an admin or a kafou_shop_manage staff
+  // member (see products.py / AddProduct.jsx), so that specific group
+  // needs the button visible, unlike other admin/staff accounts.
+  const isKafouStaff = user?.role === "admin" || (user?.role === "staff" && (user?.permissions || []).includes("kafou_shop_manage"));
   const nav = useNavigate();
   const [q, setQ] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
@@ -72,7 +78,7 @@ export default function Header() {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            {!(user?.role === "admin" || user?.role === "staff") && (
+            {(!(user?.role === "admin" || user?.role === "staff") || isKafouStaff) && (
               <Link to="/sell" className="hidden sm:block">
                 <Button data-testid="header-sell-btn" className="bg-secondary text-secondary-foreground hover:bg-secondary/90 font-semibold rounded-full h-9 px-4 active:scale-95 transition-transform">
                   <Plus className="w-4 h-4 mr-1" /> {t("sell")}
@@ -133,7 +139,7 @@ export default function Header() {
               </SheetTrigger>
               <SheetContent side="right" className="w-72 overflow-y-auto flex flex-col">
                 <div className="flex flex-col gap-1 mt-8">
-                  {!(user?.role === "admin" || user?.role === "staff") && (
+                  {(!(user?.role === "admin" || user?.role === "staff") || isKafouStaff) && (
                     <Link to="/sell" onClick={() => setMenuOpen(false)} data-testid="mobile-nav-sell" className="text-sm font-semibold px-3 py-2.5 rounded-lg bg-primary text-primary-foreground flex items-center gap-2 mb-2">
                       <Plus className="w-4 h-4" /> {t("sell")}
                     </Link>
